@@ -1,0 +1,69 @@
+import { supabase } from "@/lib/supabase/client";
+import { getUnsyncedEntries, markSynced, type OutboxEntry } from "@/lib/offline/outbox";
+
+// Safari on iOS has no Background Sync API, so this in-app worker is the
+// real sync mechanism (not the service worker) — see public/sw.js. It's
+// driven by: an explicit call right after a write, the 'online' event,
+// tab visibility changing back to visible, and a periodic interval while
+// the app is open. A kiosk iPad left open through a shift covers the
+// realistic usage pattern without needing true background sync.
+
+const SYNC_INTERVAL_MS = 30_000;
+
+let syncing = false;
+
+async function pushEntry(entry: OutboxEntry): Promise<boolean> {
+  const { error } = await supabase
+    .from(entry.table)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .upsert(entry.payload as any, { onConflict: "client_id", ignoreDuplicates: false });
+
+  if (error) {
+    console.error(`Sync failed for ${entry.table}/${entry.clientId}`, error);
+    return false;
+  }
+  return true;
+}
+
+export async function syncOutbox(): Promise<{ synced: number; remaining: number }> {
+  if (syncing || (typeof navigator !== "undefined" && !navigator.onLine)) {
+    const remaining = (await getUnsyncedEntries()).length;
+    return { synced: 0, remaining };
+  }
+
+  syncing = true;
+  let synced = 0;
+  try {
+    const entries = await getUnsyncedEntries();
+    for (const entry of entries) {
+      const ok = await pushEntry(entry);
+      if (ok) {
+        await markSynced(entry.clientId);
+        synced += 1;
+      }
+    }
+  } finally {
+    syncing = false;
+  }
+
+  const remaining = (await getUnsyncedEntries()).length;
+  return { synced, remaining };
+}
+
+export function startSyncLoop(onChange?: (remaining: number) => void): () => void {
+  const runAndReport = () => {
+    syncOutbox().then(({ remaining }) => onChange?.(remaining));
+  };
+
+  runAndReport();
+  const interval = setInterval(runAndReport, SYNC_INTERVAL_MS);
+  window.addEventListener("online", runAndReport);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") runAndReport();
+  });
+
+  return () => {
+    clearInterval(interval);
+    window.removeEventListener("online", runAndReport);
+  };
+}
