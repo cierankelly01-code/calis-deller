@@ -3,13 +3,14 @@
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StaffTilePicker } from "@/components/ui/StaffTilePicker";
-import { UnsyncedBadge } from "@/components/ui/UnsyncedBadge";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
 import {
   fetchActiveStaff,
   fetchActiveCleaningTasks,
   fetchTodayCleaningLogs,
 } from "@/lib/data/queries";
+import { useRememberedStaff } from "@/lib/staffMemory";
+import { appendToTodayCache } from "@/lib/data/optimistic";
 import { queueEntry } from "@/lib/offline/outbox";
 import { syncOutbox } from "@/lib/offline/sync";
 
@@ -24,7 +25,7 @@ export default function CleaningLogPage() {
   const { data: tasks } = useCachedQuery("cd-cleaning-tasks", fetchActiveCleaningTasks);
   const { data: todayLogs } = useCachedQuery("cd-today-cleaning-logs", fetchTodayCleaningLogs);
 
-  const [staffId, setStaffId] = useState<string | null>(null);
+  const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
   const [session, setSession] = useState<Session>(defaultSession());
   // Ticks made this visit — the server list (todayLogs) refreshes on its own
   // schedule, so completed state is the union of both.
@@ -51,11 +52,18 @@ export default function CleaningLogPage() {
 
   async function tickTask(taskId: string) {
     if (!staffId || isDone(taskId)) return;
-    await queueEntry("cleaning_logs", {
+    const recordedAt = new Date().toISOString();
+    const clientId = await queueEntry("cleaning_logs", {
       staff_id: staffId,
       task_id: taskId,
       session,
-      recorded_at: new Date().toISOString(),
+      recorded_at: recordedAt,
+    });
+    appendToTodayCache("cd-today-cleaning-logs", {
+      id: clientId,
+      task_id: taskId,
+      session,
+      recorded_at: recordedAt,
     });
     syncOutbox();
     setTickedNow((prev) => new Set(prev).add(`${session}:${taskId}`));
@@ -70,23 +78,22 @@ export default function CleaningLogPage() {
   return (
     <div className="flex flex-col flex-1">
       <PageHeader title="Cleaning Checklist" />
-      <UnsyncedBadge />
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-8 max-w-2xl w-full mx-auto">
+      <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
         <section>
-          <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-3">
+          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
             Which clean?
           </h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5">
             {(["open", "close"] as Session[]).map((s) => (
               <button
                 key={s}
                 type="button"
                 onClick={() => setSession(s)}
-                className={`h-14 rounded-xl text-base font-semibold transition-colors ${
+                className={`py-3.5 rounded-2xl text-base font-semibold transition-all ${
                   session === s
-                    ? "bg-teal-700 text-white"
-                    : "bg-white text-zinc-900 border border-zinc-200 shadow-sm"
+                    ? "bg-brand text-white shadow-sm"
+                    : "bg-surface text-ink border border-line shadow-sm"
                 }`}
               >
                 {s === "open" ? "🌅 Opening clean" : "🌙 Closing clean"}
@@ -96,30 +103,30 @@ export default function CleaningLogPage() {
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-3">
+          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
             Who&apos;s cleaning?
           </h2>
           <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
         </section>
 
         <section>
-          <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide">
+          <div className="flex items-baseline justify-between mb-2.5">
+            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider">
               Tasks — tap when done
             </h2>
-            <span className="text-sm text-zinc-500">
+            <span className="text-sm text-ink-soft">
               {sessionTasks.length - remaining.length}/{sessionTasks.length} done
             </span>
           </div>
 
           {!staffId && sessionTasks.length > 0 && (
-            <p className="mb-3 text-amber-600 font-medium text-sm">
+            <p className="mb-3 text-gold-deep font-semibold text-sm">
               Pick your name first, then tick off tasks.
             </p>
           )}
 
           {sessionTasks.length === 0 && (
-            <p className="text-zinc-500">
+            <p className="text-ink-soft rounded-2xl bg-surface border border-line p-4">
               No cleaning tasks set up for this session — add them in Settings.
             </p>
           )}
@@ -133,16 +140,17 @@ export default function CleaningLogPage() {
                   type="button"
                   disabled={done || !staffId}
                   onClick={() => tickTask(task.id)}
-                  className={`w-full flex items-center gap-3 rounded-xl px-4 py-4 text-left text-base font-semibold transition-colors active:scale-[0.99] ${
+                  className={`w-full flex items-center gap-3 rounded-2xl px-4 py-4 text-left text-base font-semibold transition-all active:scale-[0.99] ${
                     done
-                      ? "bg-teal-50 text-teal-800 border border-teal-200"
-                      : "bg-white text-zinc-900 border border-zinc-200 shadow-sm disabled:opacity-60"
+                      ? "bg-brand-soft text-brand-deep border border-brand/20"
+                      : "bg-surface text-ink border border-line shadow-sm disabled:opacity-60"
                   }`}
                 >
                   <span
                     className={`h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-sm ${
-                      done ? "bg-teal-600 text-white" : "border-2 border-zinc-300"
+                      done ? "bg-brand text-white" : "border-2 border-line"
                     }`}
+                    aria-hidden
                   >
                     {done ? "✓" : ""}
                   </span>
@@ -156,16 +164,18 @@ export default function CleaningLogPage() {
             <button
               type="button"
               onClick={tickAllRemaining}
-              className="mt-4 w-full h-12 rounded-xl bg-white border border-teal-700 text-teal-700 font-semibold"
+              className="mt-4 w-full h-12 rounded-2xl bg-surface border border-brand text-brand font-semibold active:bg-brand-soft"
             >
               Tick all remaining ({remaining.length})
             </button>
           )}
 
           {sessionTasks.length > 0 && remaining.length === 0 && (
-            <p className="mt-4 text-center text-teal-700 font-semibold text-lg">
-              ✓ {session === "open" ? "Opening" : "Closing"} clean complete
-            </p>
+            <div className="mt-4 rounded-2xl bg-brand-soft border border-brand/20 px-4 py-4 text-center">
+              <p className="font-bold text-brand-deep text-lg">
+                ✓ {session === "open" ? "Opening" : "Closing"} clean complete
+              </p>
+            </div>
           )}
         </section>
       </div>

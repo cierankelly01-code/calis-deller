@@ -98,25 +98,25 @@ export default function UnitsSettingsPage() {
     <div className="flex flex-col flex-1">
       <PageHeader title="Fridges & Freezers" backHref="/settings" />
       <div className="flex-1 overflow-y-auto px-4 py-6 max-w-2xl w-full mx-auto space-y-6">
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-ink-soft">
           Each unit gets its own twice-daily temperature checks on the dashboard. Removing a unit
           hides it — its past readings are kept for inspection.
         </p>
 
-        {error && <p className="text-red-600 font-medium">{error}</p>}
-        {units === null && !error && <p className="text-zinc-400">Loading…</p>}
+        {error && <p className="text-danger font-medium">{error}</p>}
+        {units === null && !error && <p className="text-ink-faint">Loading…</p>}
 
         <div className="space-y-2">
           {(units ?? []).map((unit) => (
             <div
               key={unit.id}
-              className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 px-4 py-3"
+              className="flex items-center justify-between rounded-xl bg-surface border border-line px-4 py-3"
             >
               <div>
-                <p className="font-semibold text-zinc-900">
+                <p className="font-semibold text-ink">
                   {unit.unit_type === "freezer" ? "❄️" : "🧊"} {unit.name}
                 </p>
-                <p className="text-sm text-zinc-500">
+                <p className="text-sm text-ink-soft">
                   Target {unit.target_min_c}°C to {unit.target_max_c}°C
                 </p>
               </div>
@@ -124,7 +124,7 @@ export default function UnitsSettingsPage() {
                 type="button"
                 disabled={busy}
                 onClick={() => removeUnit(unit.id)}
-                className="text-sm font-semibold text-red-600 disabled:opacity-40"
+                className="text-sm font-semibold text-danger disabled:opacity-40"
               >
                 Remove
               </button>
@@ -132,8 +132,8 @@ export default function UnitsSettingsPage() {
           ))}
         </div>
 
-        <section className="rounded-xl bg-white border border-zinc-200 p-4 space-y-4">
-          <h2 className="font-bold text-zinc-900">Add a unit</h2>
+        <section className="rounded-xl bg-surface border border-line p-4 space-y-4">
+          <h2 className="font-bold text-ink">Add a unit</h2>
 
           <div className="grid grid-cols-2 gap-2">
             {(["fridge", "freezer"] as UnitType[]).map((type) => (
@@ -143,8 +143,8 @@ export default function UnitsSettingsPage() {
                 onClick={() => switchType(type)}
                 className={`h-12 rounded-xl font-semibold capitalize transition-colors ${
                   unitType === type
-                    ? "bg-teal-700 text-white"
-                    : "bg-zinc-100 text-zinc-700"
+                    ? "bg-brand text-white"
+                    : "bg-paper text-ink-soft"
                 }`}
               >
                 {type === "fridge" ? "🧊 Fridge" : "❄️ Freezer"}
@@ -157,28 +157,28 @@ export default function UnitsSettingsPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={unitType === "fridge" ? "e.g. Prep Fridge" : "e.g. Chest Freezer"}
-            className="w-full h-12 rounded-xl border border-zinc-300 px-3 text-base"
+            className="w-full h-12 rounded-xl border border-line px-3 text-base"
           />
 
           <div className="flex items-center gap-3">
             <label className="flex-1">
-              <span className="block text-sm text-zinc-500 mb-1">Target min °C</span>
+              <span className="block text-sm text-ink-soft mb-1">Target min °C</span>
               <input
                 type="number"
                 step="0.5"
                 value={min}
                 onChange={(e) => setMin(e.target.value)}
-                className="w-full h-12 rounded-xl border border-zinc-300 px-3 text-base"
+                className="w-full h-12 rounded-xl border border-line px-3 text-base"
               />
             </label>
             <label className="flex-1">
-              <span className="block text-sm text-zinc-500 mb-1">Target max °C</span>
+              <span className="block text-sm text-ink-soft mb-1">Target max °C</span>
               <input
                 type="number"
                 step="0.5"
                 value={max}
                 onChange={(e) => setMax(e.target.value)}
-                className="w-full h-12 rounded-xl border border-zinc-300 px-3 text-base"
+                className="w-full h-12 rounded-xl border border-line px-3 text-base"
               />
             </label>
           </div>
@@ -187,7 +187,7 @@ export default function UnitsSettingsPage() {
             type="button"
             disabled={!canAdd}
             onClick={addUnit}
-            className="w-full h-12 rounded-xl bg-teal-700 text-white font-semibold disabled:opacity-40"
+            className="w-full h-12 rounded-xl bg-brand text-white font-semibold disabled:opacity-40"
           >
             Add {unitType}
           </button>

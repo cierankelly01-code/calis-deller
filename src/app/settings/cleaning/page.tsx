@@ -74,29 +74,29 @@ export default function CleaningSettingsPage() {
     <div className="flex flex-col flex-1">
       <PageHeader title="Cleaning Tasks" backHref="/settings" />
       <div className="flex-1 overflow-y-auto px-4 py-6 max-w-2xl w-full mx-auto space-y-6">
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-ink-soft">
           These make up the opening and closing checklists. Removing a task hides it — past
           ticks are kept.
         </p>
 
-        {error && <p className="text-red-600 font-medium">{error}</p>}
-        {tasks === null && !error && <p className="text-zinc-400">Loading…</p>}
+        {error && <p className="text-danger font-medium">{error}</p>}
+        {tasks === null && !error && <p className="text-ink-faint">Loading…</p>}
 
         <div className="space-y-2">
           {(tasks ?? []).map((task) => (
             <div
               key={task.id}
-              className="flex items-center justify-between gap-3 rounded-xl bg-white border border-zinc-200 px-4 py-3"
+              className="flex items-center justify-between gap-3 rounded-xl bg-surface border border-line px-4 py-3"
             >
               <div>
-                <p className="font-semibold text-zinc-900">{task.name}</p>
-                <p className="text-sm text-zinc-500">{SESSION_LABELS[task.session]}</p>
+                <p className="font-semibold text-ink">{task.name}</p>
+                <p className="text-sm text-ink-soft">{SESSION_LABELS[task.session]}</p>
               </div>
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => removeTask(task.id)}
-                className="text-sm font-semibold text-red-600 disabled:opacity-40 shrink-0"
+                className="text-sm font-semibold text-danger disabled:opacity-40 shrink-0"
               >
                 Remove
               </button>
@@ -104,8 +104,8 @@ export default function CleaningSettingsPage() {
           ))}
         </div>
 
-        <section className="rounded-xl bg-white border border-zinc-200 p-4 space-y-4">
-          <h2 className="font-bold text-zinc-900">Add a task</h2>
+        <section className="rounded-xl bg-surface border border-line p-4 space-y-4">
+          <h2 className="font-bold text-ink">Add a task</h2>
 
           <input
             type="text"
@@ -115,7 +115,7 @@ export default function CleaningSettingsPage() {
               if (e.key === "Enter") addTask();
             }}
             placeholder="e.g. Descale coffee machine"
-            className="w-full h-12 rounded-xl border border-zinc-300 px-3 text-base"
+            className="w-full h-12 rounded-xl border border-line px-3 text-base"
           />
 
           <div className="grid grid-cols-3 gap-2">
@@ -125,7 +125,7 @@ export default function CleaningSettingsPage() {
                 type="button"
                 onClick={() => setSession(s)}
                 className={`h-12 rounded-xl text-sm font-semibold transition-colors ${
-                  session === s ? "bg-teal-700 text-white" : "bg-zinc-100 text-zinc-700"
+                  session === s ? "bg-brand text-white" : "bg-paper text-ink-soft"
                 }`}
               >
                 {SESSION_LABELS[s]}
@@ -137,7 +137,7 @@ export default function CleaningSettingsPage() {
             type="button"
             disabled={busy || name.trim() === ""}
             onClick={addTask}
-            className="w-full h-12 rounded-xl bg-teal-700 text-white font-semibold disabled:opacity-40"
+            className="w-full h-12 rounded-xl bg-brand text-white font-semibold disabled:opacity-40"
           >
             Add task
           </button>

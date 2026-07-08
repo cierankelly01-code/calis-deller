@@ -5,33 +5,65 @@ import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StaffTilePicker } from "@/components/ui/StaffTilePicker";
 import { NumberPad } from "@/components/ui/NumberPad";
-import { UnsyncedBadge } from "@/components/ui/UnsyncedBadge";
+import { SaveBar } from "@/components/ui/SaveBar";
+import { SavedOverlay } from "@/components/ui/SavedOverlay";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
-import { fetchActiveStaff, fetchActiveFridgeUnits } from "@/lib/data/queries";
+import { fetchActiveStaff, fetchActiveFridgeUnits, fetchTodayFridgeLogs } from "@/lib/data/queries";
+import { useRememberedStaff } from "@/lib/staffMemory";
+import { appendToTodayCache } from "@/lib/data/optimistic";
 import { queueEntry } from "@/lib/offline/outbox";
 import { syncOutbox } from "@/lib/offline/sync";
 
-type Period = "am" | "mid" | "pm";
+// "Round mode": a staff member walks the kitchen once, logging every unit
+// in a row — after each save the next unchecked unit is selected
+// automatically, and ticks show which are already done for this period.
+
+type Period = "am" | "pm";
 
 function defaultPeriod(): Period {
-  const hour = new Date().getHours();
-  if (hour < 11) return "am";
-  if (hour < 16) return "mid";
-  return "pm";
+  return new Date().getHours() < 14 ? "am" : "pm";
 }
 
 export default function FridgeLogPage() {
   const router = useRouter();
   const { data: staff } = useCachedQuery("cd-staff", fetchActiveStaff);
   const { data: units } = useCachedQuery("cd-fridge-units", fetchActiveFridgeUnits);
+  const { data: todayLogs } = useCachedQuery("cd-today-fridge-logs", fetchTodayFridgeLogs);
 
-  const [staffId, setStaffId] = useState<string | null>(null);
-  const [unitId, setUnitId] = useState<string | null>(null);
+  const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
+  const [unitChoice, setUnitChoice] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>(defaultPeriod());
   const [reading, setReading] = useState("");
   const [correctiveAction, setCorrectiveAction] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
+  // Units saved from this device this visit — the server list refreshes on
+  // its own schedule, so "done" is the union of both.
+  const [doneNow, setDoneNow] = useState<Set<string>>(new Set());
+
+  const doneForPeriod = useMemo(() => {
+    const done = new Set<string>();
+    for (const log of todayLogs ?? []) {
+      // A 'mid' or 'pm' entry both count as the afternoon check.
+      const logPeriod: Period = log.period === "am" ? "am" : "pm";
+      if (logPeriod === period) done.add(log.unit_id);
+    }
+    for (const key of doneNow) {
+      const [p, id] = key.split(":");
+      if (p === period) done.add(id);
+    }
+    return done;
+  }, [todayLogs, doneNow, period]);
+
+  const remainingUnits = useMemo(
+    () => (units ?? []).filter((u) => !doneForPeriod.has(u.id)),
+    [units, doneForPeriod]
+  );
+
+  // Auto-select the first unchecked unit (derived, so no effect needed) —
+  // the common path is: walk up, read the number pad straight away. An
+  // explicit tap on any tile overrides it.
+  const unitId = unitChoice ?? remainingUnits[0]?.id ?? null;
 
   const selectedUnit = useMemo(
     () => units?.find((u) => u.id === unitId) ?? null,
@@ -47,7 +79,7 @@ export default function FridgeLogPage() {
   const needsCorrectiveAction = inRange === false;
   const canSave =
     staffId !== null &&
-    unitId !== null &&
+    selectedUnit !== null &&
     numericReading !== null &&
     (!needsCorrectiveAction || correctiveAction.trim().length > 0) &&
     !saving;
@@ -58,125 +90,179 @@ export default function FridgeLogPage() {
       numericReading >= selectedUnit.target_min_c && numericReading <= selectedUnit.target_max_c;
     setSaving(true);
     try {
-      await queueEntry("fridge_temp_logs", {
+      const recordedAt = new Date().toISOString();
+      const clientId = await queueEntry("fridge_temp_logs", {
         staff_id: staffId,
         unit_id: selectedUnit.id,
         period,
         reading_c: numericReading,
         in_range: rowInRange,
         corrective_action: !rowInRange ? correctiveAction.trim() : null,
-        recorded_at: new Date().toISOString(),
+        recorded_at: recordedAt,
+      });
+      appendToTodayCache("cd-today-fridge-logs", {
+        id: clientId,
+        unit_id: selectedUnit.id,
+        period,
+        reading_c: numericReading,
+        in_range: rowInRange,
+        recorded_at: recordedAt,
       });
       syncOutbox();
-      setSaved(true);
-      setTimeout(() => router.push("/"), 700);
+
+      const moreToDo = remainingUnits.some((u) => u.id !== selectedUnit.id);
+      setDoneNow((prev) => new Set(prev).add(`${period}:${selectedUnit.id}`));
+      setShowSaved(true);
+      setTimeout(() => {
+        setShowSaved(false);
+        setReading("");
+        setCorrectiveAction("");
+        // Back to auto-select: the derived unitId moves to the next
+        // unchecked unit on its own.
+        setUnitChoice(null);
+        if (!moreToDo) router.push("/");
+      }, 650);
     } finally {
       setSaving(false);
     }
   }
 
+  const roundFinished = (units ?? []).length > 0 && remainingUnits.length === 0;
+
   return (
     <div className="flex flex-col flex-1">
-      <PageHeader title="Fridge / Freezer Check" />
-      <UnsyncedBadge />
+      <PageHeader title="Fridge & Freezer Round" />
+      <SavedOverlay show={showSaved} message={selectedUnit ? `${selectedUnit.name} saved` : "Saved"} />
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-8 max-w-2xl w-full mx-auto">
+      <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
         <section>
-          <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-3">
-            Who&apos;s doing this check?
+          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+            Who&apos;s doing the round?
           </h2>
           <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-3">
-            Which unit?
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            {(units ?? []).map((unit) => (
-              <button
-                key={unit.id}
-                type="button"
-                onClick={() => {
-                  setUnitId(unit.id);
-                  setReading("");
-                  setCorrectiveAction("");
-                }}
-                className={`h-20 rounded-xl text-lg font-semibold px-3 transition-colors active:scale-95 ${
-                  unit.id === unitId
-                    ? "bg-teal-700 text-white"
-                    : "bg-white text-zinc-900 border border-zinc-200 shadow-sm"
-                }`}
-              >
-                {unit.name}
-                <span className="block text-xs font-normal opacity-80">
-                  {unit.target_min_c}°C to {unit.target_max_c}°C
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-3">
+          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
             Which check?
           </h2>
-          <div className="grid grid-cols-3 gap-3">
-            {(["am", "mid", "pm"] as Period[]).map((p) => (
+          <div className="grid grid-cols-2 gap-2.5">
+            {(["am", "pm"] as Period[]).map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => setPeriod(p)}
-                className={`h-12 rounded-xl text-base font-semibold uppercase transition-colors ${
+                className={`py-3.5 rounded-2xl text-base font-semibold transition-all ${
                   period === p
-                    ? "bg-teal-700 text-white"
-                    : "bg-white text-zinc-900 border border-zinc-200 shadow-sm"
+                    ? "bg-brand text-white shadow-sm"
+                    : "bg-surface text-ink border border-line shadow-sm"
                 }`}
               >
-                {p}
+                {p === "am" ? "🌅 Morning" : "🌤️ Afternoon"}
               </button>
             ))}
           </div>
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-3">
-            Reading
+          <div className="flex items-baseline justify-between mb-2.5">
+            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider">
+              Which unit?
+            </h2>
+            <span className="text-sm text-ink-soft">
+              {doneForPeriod.size}/{(units ?? []).length} done
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {(units ?? []).map((unit) => {
+              const done = doneForPeriod.has(unit.id);
+              const selected = unit.id === unitId;
+              return (
+                <button
+                  key={unit.id}
+                  type="button"
+                  onClick={() => {
+                    setUnitChoice(unit.id);
+                    setReading("");
+                    setCorrectiveAction("");
+                  }}
+                  className={`relative h-20 rounded-2xl text-lg font-semibold px-3 transition-all active:scale-95 ${
+                    selected
+                      ? "bg-brand text-white shadow-sm"
+                      : done
+                        ? "bg-brand-soft text-ink border border-brand/20"
+                        : "bg-surface text-ink border border-line shadow-sm"
+                  }`}
+                >
+                  {unit.name}
+                  <span className={`block text-xs font-normal ${selected ? "text-white/75" : "text-ink-soft"}`}>
+                    {unit.target_min_c}° to {unit.target_max_c}°C
+                  </span>
+                  {done && (
+                    <span
+                      className={`absolute top-2 right-2 h-6 w-6 rounded-full grid place-items-center text-xs ${
+                        selected ? "bg-white/25 text-white" : "bg-brand text-white"
+                      }`}
+                      aria-label="Already checked this period"
+                    >
+                      ✓
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {roundFinished && (
+            <p className="mt-3 text-center text-brand font-semibold">
+              ✓ Every unit checked for the {period === "am" ? "morning" : "afternoon"} — you can
+              still re-log one if needed.
+            </p>
+          )}
+        </section>
+
+        <section>
+          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+            Reading{selectedUnit ? ` — ${selectedUnit.name}` : ""}
           </h2>
           <NumberPad value={reading} onChange={setReading} allowNegative suffix="°C" />
           {inRange === false && selectedUnit && (
-            <p className="mt-3 text-center text-red-600 font-medium">
-              Out of range (target {selectedUnit.target_min_c}°C–{selectedUnit.target_max_c}°C)
+            <p className="mt-3 text-center text-danger font-semibold" role="alert">
+              Out of range — target is {selectedUnit.target_min_c}° to {selectedUnit.target_max_c}°C
             </p>
           )}
           {inRange === true && (
-            <p className="mt-3 text-center text-teal-700 font-medium">In range</p>
+            <p className="mt-3 text-center text-brand font-medium">✓ In range</p>
           )}
         </section>
 
         {needsCorrectiveAction && (
           <section>
-            <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-3">
-              Corrective action taken
+            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+              What did you do about it?
             </h2>
             <textarea
               value={correctiveAction}
               onChange={(e) => setCorrectiveAction(e.target.value)}
               placeholder="e.g. moved stock to walk-in, called engineer, adjusted thermostat..."
-              className="w-full rounded-xl border border-zinc-300 p-3 text-base min-h-24"
+              className="w-full rounded-2xl border border-line bg-surface p-3.5 text-base min-h-24 placeholder:text-ink-faint focus:outline-none focus:border-brand"
             />
           </section>
         )}
-
-        <button
-          type="button"
-          disabled={!canSave}
-          onClick={handleSave}
-          className="w-full h-14 rounded-xl bg-teal-700 text-white text-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {saved ? "Saved ✓" : saving ? "Saving…" : "Save"}
-        </button>
       </div>
+
+      <SaveBar
+        disabled={!canSave}
+        saving={saving}
+        saved={false}
+        onSave={handleSave}
+        label={
+          selectedUnit
+            ? remainingUnits.filter((u) => u.id !== selectedUnit.id).length > 0
+              ? `Save ${selectedUnit.name} & next unit`
+              : `Save ${selectedUnit.name}`
+            : "Save"
+        }
+      />
     </div>
   );
 }

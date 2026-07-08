@@ -15,20 +15,23 @@ function PadButton({
   children,
   wide,
   variant = "default",
+  label,
 }: {
   onClick: () => void;
   children: React.ReactNode;
   wide?: boolean;
   variant?: "default" | "muted";
+  label?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`${wide ? "col-span-3" : ""} h-16 rounded-xl text-2xl font-semibold active:scale-95 transition-transform ${
+      aria-label={label}
+      className={`${wide ? "col-span-3" : ""} h-16 rounded-2xl text-2xl font-semibold transition-all active:scale-95 ${
         variant === "muted"
-          ? "bg-zinc-200 text-zinc-700"
-          : "bg-white text-zinc-900 shadow-sm border border-zinc-200"
+          ? "bg-paper text-ink-soft border border-line"
+          : "bg-surface text-ink shadow-sm border border-line active:bg-paper"
       }`}
     >
       {children}
@@ -77,24 +80,33 @@ export function NumberPad({
 
   return (
     <div className="w-full max-w-xs mx-auto">
-      <div className="mb-4 h-16 flex items-center justify-center rounded-xl bg-zinc-900 text-white text-4xl font-mono tabular-nums">
-        {value === "" ? "0" : value}
-        {suffix && <span className="ml-1 text-2xl text-zinc-400">{suffix}</span>}
-      </div>
-      <div className="grid grid-cols-3 gap-3">
+      <output
+        className="mb-4 h-20 flex items-baseline justify-center gap-1 rounded-2xl bg-ink text-paper pt-4"
+        aria-live="polite"
+      >
+        <span className="text-5xl font-mono font-medium tabular-nums leading-none">
+          {value === "" ? "–" : value}
+        </span>
+        {suffix && <span className="text-2xl text-ink-faint leading-none">{suffix}</span>}
+      </output>
+      <div className="grid grid-cols-3 gap-2.5">
         {[7, 8, 9, 4, 5, 6, 1, 2, 3].map((d) => (
           <PadButton key={d} onClick={() => appendDigit(d)}>
             {d}
           </PadButton>
         ))}
-        <PadButton variant="muted" onClick={toggleSign}>
-          {allowNegative ? "±" : ""}
-        </PadButton>
+        {allowNegative ? (
+          <PadButton variant="muted" onClick={toggleSign} label="Plus or minus">
+            ±
+          </PadButton>
+        ) : (
+          <div aria-hidden />
+        )}
         <PadButton onClick={() => appendDigit(0)}>0</PadButton>
-        <PadButton variant="muted" onClick={appendDecimal}>
+        <PadButton variant="muted" onClick={appendDecimal} label="Decimal point">
           .
         </PadButton>
-        <PadButton wide variant="muted" onClick={backspace}>
+        <PadButton wide variant="muted" onClick={backspace} label="Delete last digit">
           ⌫ Delete
         </PadButton>
       </div>

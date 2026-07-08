@@ -60,6 +60,7 @@ export type CookingLogRow = {
   id: string;
   client_id: string;
   staff_id: string;
+  check_type: "cooking" | "reheating" | "hot_hold";
   product_id: string | null;
   product_name: string;
   quantity: number;

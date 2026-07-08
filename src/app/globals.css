@@ -1,22 +1,65 @@
 @import "tailwindcss";
 
-/* The whole UI is designed on a light zinc palette — pin it regardless of
-   the device's dark-mode setting so kitchen iPads always look the same. */
-:root {
-  --background: #fafafa;
-  --foreground: #171717;
-  color-scheme: light;
+/* Warm "deli counter" palette — cream paper, deep bottle green, brass gold.
+   The whole UI is designed light; pin color-scheme so kitchen iPads look
+   identical regardless of the device dark-mode setting. */
+
+@theme {
+  --color-paper: #f3efe6;
+  --color-surface: #fffdf8;
+  --color-ink: #23201a;
+  --color-ink-soft: #6e675a;
+  --color-ink-faint: #a59c8b;
+  --color-line: #e3dccb;
+
+  --color-brand: #1e5b45;
+  --color-brand-deep: #143f2f;
+  --color-brand-soft: #e3ede5;
+
+  --color-gold: #eeb64d;
+  --color-gold-deep: #8a5c10;
+  --color-gold-soft: #faf1dd;
+
+  --color-danger: #b23c31;
+  --color-danger-deep: #8c2d24;
+  --color-danger-soft: #f8e8e5;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces);
+}
+
+:root {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  /* Kiosk feel: no rubber-band scroll past the page, no tap-zoom delay. */
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  touch-action: manipulation;
+}
+
+@keyframes saved-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.saved-pop {
+  animation: saved-pop 0.18s ease-out;
 }

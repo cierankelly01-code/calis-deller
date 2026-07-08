@@ -60,18 +60,21 @@ create policy "products_update" on products
   for update to anon using (true) with check (true);
 
 -- COOKING LOGS (append-only) ----------------------------------------------
--- Out-of-oven core temperature checks. UK guidance: cooked food must reach
--- 75°C+ core (or equivalent time/temp). in_range computed client-side.
+-- Hot food temperature checks. UK guidance: cooking and reheating must
+-- reach 75°C+ core; hot holding must stay at 63°C+. in_range computed
+-- client-side against the check_type's target.
 
 create table if not exists cooking_logs (
   id uuid primary key default gen_random_uuid(),
   client_id uuid not null unique,
   staff_id uuid not null references staff(id),
+  check_type text not null default 'cooking'
+    check (check_type in ('cooking', 'reheating', 'hot_hold')),
   product_id uuid references products(id), -- null when typed as free text
   product_name text not null,              -- always captured, survives product edits
   quantity int not null default 1,
   temp_c numeric(4,1) not null,
-  in_range boolean not null,               -- temp_c >= 75 at capture time
+  in_range boolean not null,               -- met the check_type's target at capture time
   corrective_action text,                  -- required client-side when not in range
   recorded_at timestamptz not null,
   synced_at timestamptz not null default now(),

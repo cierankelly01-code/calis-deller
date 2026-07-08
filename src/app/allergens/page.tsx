@@ -8,8 +8,10 @@ import { ALLERGENS, allergenEmoji, allergenLabel } from "@/lib/allergens";
 import { supabase } from "@/lib/supabase/client";
 
 // The screen staff open mid-service when a customer asks "does this contain
-// nuts?" — search must be instant and the answer unmissable. Product editing
-// lives on the same screen (mode switch) so there's one place to look.
+// nuts?" — search must be instant and the answer unmissable. Tapping an
+// allergen chip flips to "safe for this allergy" mode: what CAN they eat.
+// Product editing lives on the same screen (mode switch) so there's one
+// place to look.
 
 type EditorState = {
   id: string | null; // null = adding a new product
@@ -27,12 +29,34 @@ function AllergenChips({ keys, tone }: { keys: string[]; tone: "contains" | "may
         <span
           key={key}
           className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-medium ${
-            tone === "contains" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
+            tone === "contains" ? "bg-danger-soft text-danger-deep" : "bg-gold-soft text-gold-deep"
           }`}
         >
-          {allergenEmoji(key)} {allergenLabel(key)}
+          {allergenEmoji(key)} {tone === "may" ? `may: ${allergenLabel(key)}` : allergenLabel(key)}
         </span>
       ))}
+    </div>
+  );
+}
+
+function ProductCard({ product, onEdit }: { product: ActiveProduct; onEdit: () => void }) {
+  return (
+    <div className="rounded-2xl bg-surface border border-line shadow-sm p-4 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-lg font-bold text-ink">{product.name}</p>
+        <button type="button" onClick={onEdit} className="text-sm font-semibold text-brand shrink-0">
+          Edit
+        </button>
+      </div>
+      {product.allergens.length === 0 && product.may_contain.length === 0 ? (
+        <p className="text-brand font-medium">✓ No declared allergens</p>
+      ) : (
+        <>
+          <AllergenChips keys={product.allergens} tone="contains" />
+          <AllergenChips keys={product.may_contain} tone="may" />
+        </>
+      )}
+      {product.notes && <p className="text-sm text-ink-soft">{product.notes}</p>}
     </div>
   );
 }
@@ -40,19 +64,29 @@ function AllergenChips({ keys, tone }: { keys: string[]; tone: "contains" | "may
 export default function AllergensPage() {
   const { data: products, loading } = useCachedQuery("cd-products", fetchActiveProducts);
   const [search, setSearch] = useState("");
+  const [filterKey, setFilterKey] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [savingProduct, setSavingProduct] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   // Config edits go straight to Supabase (they need to be authoritative, not
-  // queued) — refreshKey forces a refetch through the cache after a save.
+  // queued); after a save we refetch and overwrite the local cache.
   const [localProducts, setLocalProducts] = useState<ActiveProduct[] | null>(null);
 
   const list = useMemo(() => localProducts ?? products ?? [], [localProducts, products]);
-  const filtered = useMemo(() => {
+  const searched = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return list;
     return list.filter((p) => p.name.toLowerCase().includes(q));
   }, [list, search]);
+
+  const split = useMemo(() => {
+    if (!filterKey) return null;
+    const unsafe = searched.filter(
+      (p) => p.allergens.includes(filterKey) || p.may_contain.includes(filterKey)
+    );
+    const safe = searched.filter((p) => !unsafe.includes(p));
+    return { safe, unsafe };
+  }, [searched, filterKey]);
 
   function startAdd() {
     setSaveError(null);
@@ -126,9 +160,9 @@ export default function AllergensPage() {
     return (
       <div className="flex flex-col flex-1">
         <PageHeader title={editor.id ? "Edit Product" : "Add Product"} backHref="/allergens" />
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-2xl w-full mx-auto">
+        <div className="flex-1 px-4 py-5 space-y-6 max-w-2xl w-full mx-auto">
           <section>
-            <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-2">
+            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2">
               Product name
             </h2>
             <input
@@ -136,18 +170,18 @@ export default function AllergensPage() {
               value={editor.name}
               onChange={(e) => setEditor({ ...editor, name: e.target.value })}
               placeholder="e.g. Steak Bake"
-              className="w-full h-12 rounded-xl border border-zinc-300 px-3 text-base"
+              className="w-full h-12 rounded-2xl border border-line bg-surface px-4 text-base placeholder:text-ink-faint focus:outline-none focus:border-brand"
               autoFocus={!editor.id}
             />
           </section>
 
           <section>
-            <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-1">
+            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-1">
               Allergens
             </h2>
-            <p className="text-sm text-zinc-500 mb-3">
-              Tap once = <span className="text-red-700 font-semibold">contains</span>, tap twice ={" "}
-              <span className="text-amber-700 font-semibold">may contain</span>, tap again to clear.
+            <p className="text-sm text-ink-soft mb-3">
+              Tap once = <span className="text-danger font-semibold">contains</span>, tap twice ={" "}
+              <span className="text-gold-deep font-semibold">may contain</span>, tap again to clear.
             </p>
             <div className="grid grid-cols-2 gap-2">
               {ALLERGENS.map((a) => {
@@ -161,12 +195,12 @@ export default function AllergensPage() {
                     key={a.key}
                     type="button"
                     onClick={() => toggleAllergen(a.key)}
-                    className={`h-14 rounded-xl px-3 text-left text-sm font-semibold transition-colors active:scale-95 ${
+                    className={`min-h-14 rounded-2xl px-3 py-2 text-left text-sm font-semibold transition-all active:scale-95 ${
                       state === "contains"
-                        ? "bg-red-600 text-white"
+                        ? "bg-danger text-white shadow-sm"
                         : state === "may"
-                          ? "bg-amber-500 text-white"
-                          : "bg-white text-zinc-900 border border-zinc-200 shadow-sm"
+                          ? "bg-gold text-ink shadow-sm"
+                          : "bg-surface text-ink border border-line shadow-sm"
                     }`}
                   >
                     {a.emoji} {a.label}
@@ -178,24 +212,24 @@ export default function AllergensPage() {
           </section>
 
           <section>
-            <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-2">
+            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2">
               Notes (optional)
             </h2>
             <textarea
               value={editor.notes}
               onChange={(e) => setEditor({ ...editor, notes: e.target.value })}
               placeholder="e.g. pastry contains wheat flour; fried in same oil as fish"
-              className="w-full rounded-xl border border-zinc-300 p-3 text-base min-h-20"
+              className="w-full rounded-2xl border border-line bg-surface p-3.5 text-base min-h-20 placeholder:text-ink-faint focus:outline-none focus:border-brand"
             />
           </section>
 
-          {saveError && <p className="text-red-600 font-medium">{saveError}</p>}
+          {saveError && <p className="text-danger font-medium">{saveError}</p>}
 
           <button
             type="button"
             disabled={!canSaveProduct}
             onClick={() => saveProduct()}
-            className="w-full h-14 rounded-xl bg-teal-700 text-white text-lg font-semibold disabled:opacity-40"
+            className="w-full h-14 rounded-2xl bg-brand text-white text-lg font-semibold shadow-sm active:bg-brand-deep disabled:opacity-40"
           >
             {savingProduct ? "Saving…" : "Save product"}
           </button>
@@ -204,7 +238,7 @@ export default function AllergensPage() {
             <button
               type="button"
               onClick={() => setEditor(null)}
-              className="flex-1 h-12 rounded-xl bg-white border border-zinc-300 text-zinc-700 font-semibold"
+              className="flex-1 h-12 rounded-2xl bg-surface border border-line text-ink-soft font-semibold"
             >
               Cancel
             </button>
@@ -213,7 +247,7 @@ export default function AllergensPage() {
                 type="button"
                 disabled={savingProduct}
                 onClick={() => saveProduct(true)}
-                className="flex-1 h-12 rounded-xl bg-white border border-red-300 text-red-700 font-semibold"
+                className="flex-1 h-12 rounded-2xl bg-surface border border-danger/40 text-danger font-semibold"
               >
                 Remove product
               </button>
@@ -227,59 +261,95 @@ export default function AllergensPage() {
   return (
     <div className="flex flex-col flex-1">
       <PageHeader title="Allergen Guide" />
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 max-w-2xl w-full mx-auto">
+      <div className="flex-1 px-4 py-5 space-y-4 max-w-2xl w-full mx-auto">
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="🔍  Search a product…"
-          className="w-full h-14 rounded-xl border border-zinc-300 px-4 text-lg"
-          autoFocus
+          aria-label="Search products"
+          className="w-full h-14 rounded-2xl border border-line bg-surface px-4 text-lg placeholder:text-ink-faint focus:outline-none focus:border-brand"
         />
 
-        {loading && list.length === 0 && <p className="text-zinc-400">Loading…</p>}
+        <div>
+          <p className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2">
+            Customer has an allergy? Tap it
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+            {ALLERGENS.map((a) => {
+              const active = filterKey === a.key;
+              return (
+                <button
+                  key={a.key}
+                  type="button"
+                  onClick={() => setFilterKey(active ? null : a.key)}
+                  className={`shrink-0 h-11 rounded-full px-4 text-sm font-semibold transition-all active:scale-95 ${
+                    active
+                      ? "bg-ink text-paper shadow-sm"
+                      : "bg-surface text-ink border border-line"
+                  }`}
+                >
+                  {a.emoji} {a.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-        {!loading && filtered.length === 0 && (
-          <p className="text-zinc-500 text-center py-8">
+        {loading && list.length === 0 && <p className="text-ink-faint">Loading…</p>}
+
+        {!loading && searched.length === 0 && (
+          <p className="text-ink-soft text-center py-8" role="status">
             {search ? `Nothing matching “${search}”.` : "No products yet — add the first one below."}
           </p>
         )}
 
-        <div className="space-y-3">
-          {filtered.map((product) => (
-            <div key={product.id} className="rounded-xl bg-white border border-zinc-200 p-4 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-lg font-bold text-zinc-900">{product.name}</p>
-                <button
-                  type="button"
-                  onClick={() => startEdit(product)}
-                  className="text-sm font-semibold text-teal-700 shrink-0"
-                >
-                  Edit
-                </button>
-              </div>
-              {product.allergens.length === 0 && product.may_contain.length === 0 ? (
-                <p className="text-teal-700 font-medium">✓ No declared allergens</p>
+        {split ? (
+          <>
+            <section>
+              <h2 className="text-[13px] font-semibold text-brand uppercase tracking-wider mb-2">
+                ✓ Safe — no {allergenLabel(filterKey!).toLowerCase()}
+              </h2>
+              {split.safe.length === 0 ? (
+                <p className="text-sm text-ink-soft rounded-2xl bg-surface border border-line p-4">
+                  Nothing on the list is safe for this allergy.
+                </p>
               ) : (
-                <>
-                  <AllergenChips keys={product.allergens} tone="contains" />
-                  <AllergenChips keys={product.may_contain} tone="may" />
-                </>
+                <div className="space-y-3">
+                  {split.safe.map((p) => (
+                    <ProductCard key={p.id} product={p} onEdit={() => startEdit(p)} />
+                  ))}
+                </div>
               )}
-              {product.notes && <p className="text-sm text-zinc-500">{product.notes}</p>}
-            </div>
-          ))}
-        </div>
+            </section>
+            <section>
+              <h2 className="text-[13px] font-semibold text-danger uppercase tracking-wider mb-2">
+                ✗ Not safe — contains or may contain
+              </h2>
+              <div className="space-y-3">
+                {split.unsafe.map((p) => (
+                  <ProductCard key={p.id} product={p} onEdit={() => startEdit(p)} />
+                ))}
+              </div>
+            </section>
+          </>
+        ) : (
+          <div className="space-y-3">
+            {searched.map((p) => (
+              <ProductCard key={p.id} product={p} onEdit={() => startEdit(p)} />
+            ))}
+          </div>
+        )}
 
         <button
           type="button"
           onClick={startAdd}
-          className="w-full h-14 rounded-xl bg-teal-700 text-white text-lg font-semibold"
+          className="w-full h-14 rounded-2xl bg-brand text-white text-lg font-semibold shadow-sm active:bg-brand-deep"
         >
           + Add a product
         </button>
 
-        <p className="text-xs text-zinc-400 text-center pb-4">
+        <p className="text-xs text-ink-faint text-center pb-4">
           Contains = recipe ingredient · May contain = cross-contamination risk
         </p>
       </div>

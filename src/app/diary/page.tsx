@@ -77,10 +77,10 @@ async function fetchDay(dateStr: string): Promise<DayData> {
 function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
     <section>
-      <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-2">
-        {title} <span className="text-zinc-400">({count})</span>
+      <h2 className="text-sm font-semibold text-ink-soft uppercase tracking-wide mb-2">
+        {title} <span className="text-ink-faint">({count})</span>
       </h2>
-      {count === 0 ? <p className="text-sm text-zinc-400">No records.</p> : <div className="space-y-2">{children}</div>}
+      {count === 0 ? <p className="text-sm text-ink-faint">No records.</p> : <div className="space-y-2">{children}</div>}
     </section>
   );
 }
@@ -89,7 +89,7 @@ function Row({ children, flag }: { children: React.ReactNode; flag?: boolean }) 
   return (
     <div
       className={`rounded-xl border px-4 py-3 text-sm ${
-        flag ? "bg-red-50 border-red-200" : "bg-white border-zinc-200"
+        flag ? "bg-danger-soft border-danger/30" : "bg-surface border-line"
       }`}
     >
       {children}
@@ -160,7 +160,7 @@ export default function DiaryPage() {
           <button
             type="button"
             onClick={() => shiftDay(-1)}
-            className="h-12 w-12 rounded-xl bg-white border border-zinc-200 text-xl font-bold shrink-0"
+            className="h-12 w-12 rounded-xl bg-surface border border-line text-xl font-bold shrink-0"
             aria-label="Previous day"
           >
             ‹
@@ -170,22 +170,22 @@ export default function DiaryPage() {
             value={dateStr}
             max={toDateInputValue(new Date())}
             onChange={(e) => e.target.value && setDateStr(e.target.value)}
-            className="flex-1 h-12 rounded-xl border border-zinc-300 px-3 text-base text-center"
+            className="flex-1 h-12 rounded-xl border border-line px-3 text-base text-center"
           />
           <button
             type="button"
             onClick={() => shiftDay(1)}
-            className="h-12 w-12 rounded-xl bg-white border border-zinc-200 text-xl font-bold shrink-0"
+            className="h-12 w-12 rounded-xl bg-surface border border-line text-xl font-bold shrink-0"
             aria-label="Next day"
           >
             ›
           </button>
         </div>
 
-        <p className="text-center font-semibold text-zinc-900">{prettyDate}</p>
+        <p className="text-center font-semibold text-ink">{prettyDate}</p>
 
-        {loading && <p className="text-zinc-400 text-center">Loading…</p>}
-        {error && <p className="text-red-600 font-medium text-center">{error}</p>}
+        {loading && <p className="text-ink-faint text-center">Loading…</p>}
+        {error && <p className="text-danger font-medium text-center">{error}</p>}
 
         {!loading && !error && data && (
           <>
@@ -199,23 +199,33 @@ export default function DiaryPage() {
                   {log.in_range ? "in range" : "OUT OF RANGE"} · {formatTime(log.recorded_at)} ·{" "}
                   {staffName(log.staff_id)}
                   {log.corrective_action && (
-                    <span className="block mt-1 text-red-700">Action: {log.corrective_action}</span>
+                    <span className="block mt-1 text-danger">Action: {log.corrective_action}</span>
                   )}
                 </Row>
               ))}
             </Section>
 
-            <Section title="🍳 Cooking checks" count={data.cooking.length}>
-              {data.cooking.map((log) => (
-                <Row key={log.id} flag={!log.in_range}>
-                  <span className="font-semibold">{log.product_name}</span> × {log.quantity} —{" "}
-                  {log.temp_c}°C · {log.in_range ? "≥75°C ✓" : "BELOW 75°C"} ·{" "}
-                  {formatTime(log.recorded_at)} · {staffName(log.staff_id)}
-                  {log.corrective_action && (
-                    <span className="block mt-1 text-red-700">Action: {log.corrective_action}</span>
-                  )}
-                </Row>
-              ))}
+            <Section title="🍳 Hot food checks" count={data.cooking.length}>
+              {data.cooking.map((log) => {
+                const target = log.check_type === "hot_hold" ? 63 : 75;
+                const typeLabel =
+                  log.check_type === "hot_hold"
+                    ? "hot hold"
+                    : log.check_type === "reheating"
+                      ? "reheating"
+                      : "cooking";
+                return (
+                  <Row key={log.id} flag={!log.in_range}>
+                    <span className="font-semibold">{log.product_name}</span> × {log.quantity} —{" "}
+                    {log.temp_c}°C ({typeLabel}) ·{" "}
+                    {log.in_range ? `≥${target}°C ✓` : `BELOW ${target}°C`} ·{" "}
+                    {formatTime(log.recorded_at)} · {staffName(log.staff_id)}
+                    {log.corrective_action && (
+                      <span className="block mt-1 text-danger">Action: {log.corrective_action}</span>
+                    )}
+                  </Row>
+                );
+              })}
             </Section>
 
             <Section title="🚚 Deliveries" count={data.deliveries.length}>
@@ -224,7 +234,7 @@ export default function DiaryPage() {
                   <span className="font-semibold">{log.supplier_name}</span> —{" "}
                   {log.accepted ? "accepted" : "REJECTED"} · {formatTime(log.recorded_at)} ·{" "}
                   {staffName(log.staff_id)}
-                  <span className="block text-zinc-500">
+                  <span className="block text-ink-soft">
                     {[
                       log.vehicle_temp_c !== null ? `van ${log.vehicle_temp_c}°C` : null,
                       log.chilled_temp_c !== null ? `chilled ${log.chilled_temp_c}°C` : null,
@@ -236,9 +246,9 @@ export default function DiaryPage() {
                       .join(" · ")}
                   </span>
                   {log.rejection_reason && (
-                    <span className="block mt-1 text-red-700">Rejected: {log.rejection_reason}</span>
+                    <span className="block mt-1 text-danger">Rejected: {log.rejection_reason}</span>
                   )}
-                  {log.notes && <span className="block mt-1 text-zinc-500">{log.notes}</span>}
+                  {log.notes && <span className="block mt-1 text-ink-soft">{log.notes}</span>}
                 </Row>
               ))}
             </Section>
@@ -262,13 +272,13 @@ export default function DiaryPage() {
                   {log.pass ? "pass ✓" : "FAIL"} · {formatTime(log.recorded_at)} ·{" "}
                   {staffName(log.staff_id)}
                   {log.corrective_action && (
-                    <span className="block mt-1 text-red-700">Action: {log.corrective_action}</span>
+                    <span className="block mt-1 text-danger">Action: {log.corrective_action}</span>
                   )}
                 </Row>
               ))}
             </Section>
 
-            <p className="text-xs text-zinc-400 text-center pb-4">
+            <p className="text-xs text-ink-faint text-center pb-4">
               Records are append-only — entries can&apos;t be edited or deleted after saving, so
               this page is inspection-ready evidence.
             </p>

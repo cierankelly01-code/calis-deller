@@ -20,12 +20,12 @@ export default function SettingsPage() {
           <Link
             key={section.href}
             href={section.href}
-            className="flex items-center gap-4 rounded-xl bg-white border border-zinc-200 px-4 py-4 shadow-sm active:scale-[0.99]"
+            className="flex items-center gap-4 rounded-xl bg-surface border border-line px-4 py-4 shadow-sm active:scale-[0.99]"
           >
             <span className="text-3xl">{section.emoji}</span>
             <span>
-              <span className="block font-bold text-zinc-900">{section.title}</span>
-              <span className="block text-sm text-zinc-500">{section.sub}</span>
+              <span className="block font-bold text-ink">{section.title}</span>
+              <span className="block text-sm text-ink-soft">{section.sub}</span>
             </span>
           </Link>
         ))}

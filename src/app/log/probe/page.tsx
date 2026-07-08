@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StaffTilePicker } from "@/components/ui/StaffTilePicker";
 import { NumberPad } from "@/components/ui/NumberPad";
-import { UnsyncedBadge } from "@/components/ui/UnsyncedBadge";
+import { SaveBar } from "@/components/ui/SaveBar";
+import { SavedOverlay } from "@/components/ui/SavedOverlay";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
 import { fetchActiveStaff } from "@/lib/data/queries";
+import { useRememberedStaff } from "@/lib/staffMemory";
 import { queueEntry } from "@/lib/offline/outbox";
 import { syncOutbox } from "@/lib/offline/sync";
 
@@ -28,12 +30,12 @@ export default function ProbeCalibrationPage() {
   const router = useRouter();
   const { data: staff } = useCachedQuery("cd-staff", fetchActiveStaff);
 
-  const [staffId, setStaffId] = useState<string | null>(null);
+  const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
   const [method, setMethod] = useState<Method>("ice");
   const [reading, setReading] = useState("");
   const [correctiveAction, setCorrectiveAction] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
 
   const numericReading = reading === "" || reading === "-" ? null : parseFloat(reading);
   const pass =
@@ -60,8 +62,8 @@ export default function ProbeCalibrationPage() {
         recorded_at: new Date().toISOString(),
       });
       syncOutbox();
-      setSaved(true);
-      setTimeout(() => router.push("/"), 700);
+      setShowSaved(true);
+      setTimeout(() => router.push("/"), 650);
     } finally {
       setSaving(false);
     }
@@ -70,21 +72,21 @@ export default function ProbeCalibrationPage() {
   return (
     <div className="flex flex-col flex-1">
       <PageHeader title="Probe Calibration" />
-      <UnsyncedBadge />
+      <SavedOverlay show={showSaved} message="Calibration logged" />
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-8 max-w-2xl w-full mx-auto">
+      <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
         <section>
-          <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-3">
+          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
             Who&apos;s checking the probe?
           </h2>
           <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-3">
+          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
             Method
           </h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5">
             {(Object.keys(METHODS) as Method[]).map((m) => (
               <button
                 key={m}
@@ -93,10 +95,10 @@ export default function ProbeCalibrationPage() {
                   setMethod(m);
                   setReading("");
                 }}
-                className={`h-16 rounded-xl text-base font-semibold transition-colors ${
+                className={`h-16 rounded-2xl text-base font-semibold transition-all ${
                   method === m
-                    ? "bg-teal-700 text-white"
-                    : "bg-white text-zinc-900 border border-zinc-200 shadow-sm"
+                    ? "bg-brand text-white shadow-sm"
+                    : "bg-surface text-ink border border-line shadow-sm"
                 }`}
               >
                 {METHODS[m].label}
@@ -106,17 +108,17 @@ export default function ProbeCalibrationPage() {
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-3">
+          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
             Probe reading
           </h2>
           <NumberPad value={reading} onChange={setReading} allowNegative suffix="°C" />
           {pass === true && (
-            <p className="mt-3 text-center text-teal-700 font-medium">
+            <p className="mt-3 text-center text-brand font-medium">
               ✓ Pass — within ±{TOLERANCE_C}°C of {METHODS[method].target}°C
             </p>
           )}
           {pass === false && (
-            <p className="mt-3 text-center text-red-600 font-medium">
+            <p className="mt-3 text-center text-danger font-semibold" role="alert">
               Fail — more than ±{TOLERANCE_C}°C off {METHODS[method].target}°C
             </p>
           )}
@@ -124,27 +126,20 @@ export default function ProbeCalibrationPage() {
 
         {pass === false && (
           <section>
-            <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-3">
+            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
               What did you do about it?
             </h2>
             <textarea
               value={correctiveAction}
               onChange={(e) => setCorrectiveAction(e.target.value)}
               placeholder="e.g. recalibrated probe, switched to backup probe..."
-              className="w-full rounded-xl border border-zinc-300 p-3 text-base min-h-24"
+              className="w-full rounded-2xl border border-line bg-surface p-3.5 text-base min-h-24 placeholder:text-ink-faint focus:outline-none focus:border-brand"
             />
           </section>
         )}
-
-        <button
-          type="button"
-          disabled={!canSave}
-          onClick={handleSave}
-          className="w-full h-14 rounded-xl bg-teal-700 text-white text-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {saved ? "Saved ✓" : saving ? "Saving…" : "Save"}
-        </button>
       </div>
+
+      <SaveBar disabled={!canSave} saving={saving} saved={false} onSave={handleSave} />
     </div>
   );
 }

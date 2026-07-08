@@ -77,21 +77,21 @@ export function SimpleNameListManager({
 
   return (
     <div className="space-y-3">
-      {error && <p className="text-red-600 font-medium">{error}</p>}
-      {rows === null && !error && <p className="text-zinc-400">Loading…</p>}
+      {error && <p className="text-danger font-medium">{error}</p>}
+      {rows === null && !error && <p className="text-ink-faint">Loading…</p>}
 
       <div className="space-y-2">
         {(rows ?? []).map((row) => (
           <div
             key={row.id}
-            className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 px-4 py-3"
+            className="flex items-center justify-between rounded-xl bg-surface border border-line px-4 py-3"
           >
-            <p className="font-semibold text-zinc-900">{row.name}</p>
+            <p className="font-semibold text-ink">{row.name}</p>
             <button
               type="button"
               disabled={busy}
               onClick={() => remove(row.id)}
-              className="text-sm font-semibold text-red-600 disabled:opacity-40"
+              className="text-sm font-semibold text-danger disabled:opacity-40"
             >
               Remove
             </button>
@@ -108,13 +108,13 @@ export function SimpleNameListManager({
             if (e.key === "Enter") add();
           }}
           placeholder={placeholder}
-          className="flex-1 h-12 rounded-xl border border-zinc-300 px-3 text-base"
+          className="flex-1 h-12 rounded-xl border border-line px-3 text-base"
         />
         <button
           type="button"
           disabled={busy || newName.trim() === ""}
           onClick={add}
-          className="h-12 px-5 rounded-xl bg-teal-700 text-white font-semibold disabled:opacity-40"
+          className="h-12 px-5 rounded-xl bg-brand text-white font-semibold disabled:opacity-40"
         >
           {addLabel}
         </button>
