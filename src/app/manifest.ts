@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Cali's Deller Food Safety Diary",
-    short_name: "Food Safety",
+    name: "Kelly's Deli Food Log",
+    short_name: "Food Log",
     description:
-      "Digital SFBB/HACCP diary for Cali's Deller — fridge, cooking, delivery, cleaning and allergen records.",
+      "Digital SFBB/HACCP diary for Kelly's Deli — fridge, cooking, delivery, cleaning and allergen records.",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",

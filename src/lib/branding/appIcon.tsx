@@ -16,5 +16,5 @@ export function AppIconGlyph({ fontSize }: { fontSize: number }) {
     fontSize,
     letterSpacing: -1,
   };
-  return <div style={style}>CD</div>;
+  return <div style={style}>KD</div>;
 }

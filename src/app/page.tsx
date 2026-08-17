@@ -64,7 +64,7 @@ export default function DashboardPage() {
         <div className="px-5 py-5 max-w-2xl w-full mx-auto flex items-center justify-between">
           <div>
             <h1 className="font-display text-[28px] font-semibold text-brand-deep leading-tight">
-              Cali&apos;s Deller
+              Kelly&apos;s Deli
             </h1>
             <p className="text-sm text-ink-soft">{todayHeading()}</p>
           </div>

@@ -1,4 +1,4 @@
-# Cali's Deller — Food Safety Diary
+# Kelly's Deli — Food Log
 
 A digital replacement for the paper SFBB (Safer Food, Better Business) diary, built for a
 shared kitchen iPad. Everything an EHO asks for, recorded in a few taps:
