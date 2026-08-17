@@ -33,6 +33,7 @@ shared kitchen iPad. Everything an EHO asks for, recorded in a few taps:
    - the contents of `supabase/migrations/0001_init.sql`
    - the contents of `supabase/migrations/0002_full_diary.sql`
    - the contents of `supabase/seed.sql` (starter staff/units/tasks — edit in-app later)
+   - the contents of `supabase/migrations/0003_grants_and_units.sql` (API grants — required)
 3. Go to **Settings → API** and copy two values:
    - **Project URL** (looks like `https://abcdefgh.supabase.co`)
    - **anon public** key
@@ -49,12 +50,16 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR-ANON-KEY
 Test locally: `npm run dev`, open http://localhost:3000, log a fridge check, and confirm the
 row appears in Supabase (Table Editor → fridge_temp_logs).
 
-### 3. Deploy (Vercel, free)
+### 3. Deploy (Coolify on Hetzner)
 
 1. Push this repository to GitHub.
-2. At [vercel.com](https://vercel.com) → **Add New → Project** → import the repo.
-3. Under **Environment Variables**, add the same two `NEXT_PUBLIC_SUPABASE_*` values.
-4. Deploy. You'll get a URL like `https://calis-deller.vercel.app`.
+2. In Coolify: **+ New → Application** → this GitHub repo, branch `master`,
+   **Build Pack: Dockerfile**, port `3000`.
+3. Add three environment variables and mark each one as a **Build Variable**
+   (they're inlined at build time): `NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_ADMIN_PIN`.
+4. Deploy. Coolify's auto-generated domain works out of the box; a custom
+   subdomain can be pointed at it later.
 
 ### 4. Put it on the iPad
 

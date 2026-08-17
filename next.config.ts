@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Self-contained server bundle for the Docker/Coolify deploy —
+  // .next/standalone runs with `node server.js`, no node_modules install.
+  output: "standalone",
   async headers() {
     return [
       {

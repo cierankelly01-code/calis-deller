@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { buildExportCsv, downloadCsv } from "@/lib/export/csv";
 import { supabase } from "@/lib/supabase/client";
 import type {
   CleaningLogRow,
@@ -97,6 +98,72 @@ function Row({ children, flag }: { children: React.ReactNode; flag?: boolean }) 
   );
 }
 
+function ExportCard() {
+  const [fromStr, setFromStr] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return toDateInputValue(d);
+  });
+  const [toStr, setToStr] = useState(() => toDateInputValue(new Date()));
+  const [state, setState] = useState<"idle" | "working" | "error">("idle");
+
+  async function handleExport() {
+    setState("working");
+    try {
+      const csv = await buildExportCsv(fromStr, toStr);
+      downloadCsv(csv, `food-safety-diary_${fromStr}_to_${toStr}.csv`);
+      setState("idle");
+    } catch {
+      setState("error");
+    }
+  }
+
+  return (
+    <section className="rounded-xl bg-surface border border-line p-4 space-y-3 print:hidden">
+      <h2 className="text-sm font-semibold text-ink-soft uppercase tracking-wide">
+        📋 EHO export
+      </h2>
+      <div className="flex items-center gap-2">
+        <input
+          type="date"
+          value={fromStr}
+          max={toStr}
+          onChange={(e) => e.target.value && setFromStr(e.target.value)}
+          aria-label="Export from date"
+          className="flex-1 min-w-0 h-12 rounded-xl border border-line px-2 text-sm text-center"
+        />
+        <span className="text-ink-faint shrink-0">to</span>
+        <input
+          type="date"
+          value={toStr}
+          min={fromStr}
+          max={toDateInputValue(new Date())}
+          onChange={(e) => e.target.value && setToStr(e.target.value)}
+          aria-label="Export to date"
+          className="flex-1 min-w-0 h-12 rounded-xl border border-line px-2 text-sm text-center"
+        />
+      </div>
+      <button
+        type="button"
+        onClick={handleExport}
+        disabled={state === "working"}
+        className="w-full h-12 rounded-xl bg-brand text-paper font-bold active:scale-[0.99] disabled:opacity-60"
+      >
+        {state === "working" ? "Preparing…" : "Download CSV"}
+      </button>
+      {state === "error" && (
+        <p className="text-sm text-danger font-medium">
+          Export failed — check the internet connection and try again.
+        </p>
+      )}
+      <p className="text-xs text-ink-faint">
+        One spreadsheet row per record across every module, including device
+        and server timestamps. For a PDF of a single day, use Print below.
+      </p>
+    </section>
+  );
+}
+
 export default function DiaryPage() {
   const [dateStr, setDateStr] = useState(() => toDateInputValue(new Date()));
   // Tagging the result with the date it was fetched for makes "loading"
@@ -155,8 +222,15 @@ export default function DiaryPage() {
   return (
     <div className="flex flex-col flex-1">
       <PageHeader title="Diary" />
-      <div className="flex-1 overflow-y-auto px-4 py-6 max-w-2xl w-full mx-auto space-y-6">
-        <div className="flex items-center gap-2">
+      <div className="flex-1 overflow-y-auto px-4 py-6 max-w-2xl w-full mx-auto space-y-6 print:overflow-visible">
+        {/* Print-only letterhead: browser Print → Save as PDF is the PDF export. */}
+        <div className="hidden print:block text-center space-y-1">
+          <p className="font-display text-2xl font-semibold">Kelly&apos;s Deli — Food Safety Diary</p>
+          <p className="text-sm">
+            Records are append-only: entries cannot be edited or deleted after saving.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 print:hidden">
           <button
             type="button"
             onClick={() => shiftDay(-1)}
@@ -278,10 +352,21 @@ export default function DiaryPage() {
               ))}
             </Section>
 
-            <p className="text-xs text-ink-faint text-center pb-4">
+            <p className="text-xs text-ink-faint text-center print:hidden">
               Records are append-only — entries can&apos;t be edited or deleted after saving, so
               this page is inspection-ready evidence.
             </p>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="w-full h-12 rounded-xl bg-surface border border-line font-bold text-ink active:scale-[0.99] print:hidden"
+            >
+              🖨️ Print / Save as PDF — {prettyDate}
+            </button>
+
+            <ExportCard />
+            <div className="pb-4 print:hidden" />
           </>
         )}
       </div>

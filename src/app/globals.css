@@ -49,6 +49,15 @@ a {
   touch-action: manipulation;
 }
 
+/* Print → Save as PDF is the diary's PDF export: white paper, black ink,
+   no app chrome (chrome elements opt out with Tailwind's print:hidden). */
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+}
+
 @keyframes saved-pop {
   from {
     opacity: 0;

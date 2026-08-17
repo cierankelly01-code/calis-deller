@@ -13,12 +13,17 @@ const SYNC_INTERVAL_MS = 30_000;
 let syncing = false;
 
 async function pushEntry(entry: OutboxEntry): Promise<boolean> {
+  // Plain insert, never upsert: log tables are append-only (RLS denies
+  // UPDATE), so an upsert that hits the client_id conflict would try an
+  // UPDATE, get rejected, and leave the entry stuck unsynced forever.
+  // A duplicate-key error (23505) means the row already made it to the
+  // server on an earlier attempt — that IS success.
   const { error } = await supabase
     .from(entry.table)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .upsert(entry.payload as any, { onConflict: "client_id", ignoreDuplicates: false });
+    .insert(entry.payload as any);
 
-  if (error) {
+  if (error && error.code !== "23505") {
     console.error(`Sync failed for ${entry.table}/${entry.clientId}`, error);
     return false;
   }
@@ -55,15 +60,18 @@ export function startSyncLoop(onChange?: (remaining: number) => void): () => voi
     syncOutbox().then(({ remaining }) => onChange?.(remaining));
   };
 
+  const onVisibilityChange = () => {
+    if (document.visibilityState === "visible") runAndReport();
+  };
+
   runAndReport();
   const interval = setInterval(runAndReport, SYNC_INTERVAL_MS);
   window.addEventListener("online", runAndReport);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") runAndReport();
-  });
+  document.addEventListener("visibilitychange", onVisibilityChange);
 
   return () => {
     clearInterval(interval);
     window.removeEventListener("online", runAndReport);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
   };
 }

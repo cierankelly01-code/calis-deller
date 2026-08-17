@@ -3,7 +3,7 @@ import { SyncStatusPill } from "@/components/ui/SyncStatusPill";
 
 export function PageHeader({ title, backHref = "/" }: { title: string; backHref?: string }) {
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur pt-[env(safe-area-inset-top)]">
+    <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur pt-[env(safe-area-inset-top)] print:hidden">
       <div className="flex items-center gap-3 px-4 h-16 max-w-2xl w-full mx-auto">
         <Link
           href={backHref}
