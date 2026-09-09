@@ -26,6 +26,7 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "Kelly's Deli — Food Log",
   description: "Digital SFBB/HACCP food safety diary for Kelly's Deli.",
+  robots: { index: false, follow: false, nocache: true },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
