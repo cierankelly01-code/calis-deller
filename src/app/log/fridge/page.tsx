@@ -36,6 +36,7 @@ export default function FridgeLogPage() {
   const [reading, setReading] = useState("");
   const [correctiveAction, setCorrectiveAction] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [showSaved, setShowSaved] = useState(false);
   // Units saved from this device this visit — the server list refreshes on
   // its own schedule, so "done" is the union of both.
@@ -89,6 +90,7 @@ export default function FridgeLogPage() {
     const rowInRange =
       numericReading >= selectedUnit.target_min_c && numericReading <= selectedUnit.target_max_c;
     setSaving(true);
+    setSaveError(null);
     try {
       const recordedAt = new Date().toISOString();
       const clientId = await queueEntry("fridge_temp_logs", {
@@ -108,7 +110,7 @@ export default function FridgeLogPage() {
         in_range: rowInRange,
         recorded_at: recordedAt,
       });
-      syncOutbox();
+      void syncOutbox().catch(() => {});
 
       const moreToDo = remainingUnits.some((u) => u.id !== selectedUnit.id);
       setDoneNow((prev) => new Set(prev).add(`${period}:${selectedUnit.id}`));
@@ -122,6 +124,8 @@ export default function FridgeLogPage() {
         setUnitChoice(null);
         if (!moreToDo) router.push("/");
       }, 650);
+    } catch {
+      setSaveError("Could not save on this device. Check the fields, device time and available storage, then retry.");
     } finally {
       setSaving(false);
     }
@@ -133,6 +137,7 @@ export default function FridgeLogPage() {
     <div className="flex flex-col flex-1">
       <PageHeader title="Fridge & Freezer Round" />
       <SavedOverlay show={showSaved} message={selectedUnit ? `${selectedUnit.name} saved` : "Saved"} />
+      {saveError && <p role="alert" className="px-4 py-2 text-danger">{saveError}</p>}
 
       <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
         <section>
@@ -240,7 +245,7 @@ export default function FridgeLogPage() {
             <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
               What did you do about it?
             </h2>
-            <textarea
+            <textarea maxLength={2000}
               value={correctiveAction}
               onChange={(e) => setCorrectiveAction(e.target.value)}
               placeholder="e.g. moved stock to walk-in, called engineer, adjusted thermostat..."

@@ -1,7 +1,9 @@
-import { PinGate } from "@/components/settings/PinGate";
+import { identity } from '@/lib/security/server';
+import { redirect } from 'next/navigation';
 
-// Every /settings/* page sits behind the manager PIN (see PinGate for
-// the honest scope of that protection). Log pages are deliberately open.
-export default function SettingsLayout({ children }: { children: React.ReactNode }) {
-  return <PinGate>{children}</PinGate>;
+export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
+  const user = await identity(false);
+  if (!user) redirect('/login?next=/settings');
+  if (user.role !== 'manager') return <main className="p-8">Manager access required.</main>;
+  return <>{children}</>;
 }

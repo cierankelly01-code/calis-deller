@@ -36,6 +36,7 @@ export default function CookingLogPage() {
   const [temp, setTemp] = useState("");
   const [correctiveAction, setCorrectiveAction] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [showSaved, setShowSaved] = useState(false);
 
   const check = CHECKS[checkType];
@@ -64,6 +65,7 @@ export default function CookingLogPage() {
   async function handleSave() {
     if (!canSave || numericTemp === null || !staffId) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await queueEntry("cooking_logs", {
         staff_id: staffId,
@@ -76,7 +78,7 @@ export default function CookingLogPage() {
         corrective_action: numericTemp < check.target ? correctiveAction.trim() : null,
         recorded_at: new Date().toISOString(),
       });
-      syncOutbox();
+      void syncOutbox().catch(() => {});
       setShowSaved(true);
       setTimeout(() => {
         setShowSaved(false);
@@ -87,6 +89,8 @@ export default function CookingLogPage() {
         setTemp("");
         setCorrectiveAction("");
       }, 650);
+    } catch {
+      setSaveError("Could not save on this device. Check the fields, device time and available storage, then retry.");
     } finally {
       setSaving(false);
     }
@@ -96,6 +100,7 @@ export default function CookingLogPage() {
     <div className="flex flex-col flex-1">
       <PageHeader title="Hot Food Check" />
       <SavedOverlay show={showSaved} message={`${productName.trim() || "Entry"} saved`} />
+      {saveError && <p role="alert" className="px-4 py-2 text-danger">{saveError}</p>}
 
       <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
         <section>
@@ -220,7 +225,7 @@ export default function CookingLogPage() {
             <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
               What did you do about it?
             </h2>
-            <textarea
+            <textarea maxLength={2000}
               value={correctiveAction}
               onChange={(e) => setCorrectiveAction(e.target.value)}
               placeholder="e.g. returned to oven for 10 more minutes and re-probed..."

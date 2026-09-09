@@ -35,6 +35,8 @@ export function SyncStatusPill() {
     );
   }
 
+  if (remaining === -1) return <span role="alert" className="text-danger text-xs">Sync needs attention — entries kept on device</span>;
+
   if (remaining !== null && remaining > 0) {
     return (
       <span
@@ -42,7 +44,7 @@ export function SyncStatusPill() {
         className="inline-flex items-center gap-1.5 rounded-full bg-gold-soft text-gold-deep text-xs font-semibold px-3 py-1.5"
       >
         <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse" aria-hidden />
-        {remaining} syncing
+        {remaining} saved on device · awaiting sync
       </span>
     );
   }

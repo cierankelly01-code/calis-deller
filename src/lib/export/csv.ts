@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
+import { escapeCell } from './csv-cell';
 import type {
   CleaningLogRow,
   CookingLogRow,
@@ -38,11 +39,6 @@ type CsvRow = {
   staffId: string;
   notes: string;
 };
-
-function escapeCell(value: string): string {
-  if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
-  return value;
-}
 
 function localDate(iso: string): string {
   const d = new Date(iso);

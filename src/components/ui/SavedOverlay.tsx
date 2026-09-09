@@ -2,7 +2,7 @@
 
 // Big unmissable confirmation — a staff member glancing from arm's length
 // needs more than a button label swap to trust the entry went in.
-export function SavedOverlay({ show, message = "Saved" }: { show: boolean; message?: string }) {
+export function SavedOverlay({ show, message = "Saved on this device" }: { show: boolean; message?: string }) {
   if (!show) return null;
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-ink/25" role="status">

@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import { RegisterServiceWorker } from "./register-service-worker";
 import "./globals.css";
+import { AuthBoundary } from '@/components/auth/AuthBoundary';
+export const dynamic = 'force-dynamic';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,7 +54,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-paper text-ink">
         <RegisterServiceWorker />
-        {children}
+        <AuthBoundary>{children}</AuthBoundary>
       </body>
     </html>
   );

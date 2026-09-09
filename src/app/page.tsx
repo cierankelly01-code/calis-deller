@@ -11,6 +11,7 @@ import {
 } from "@/lib/data/queries";
 import { currentSlot, computeUnitSlotStatus } from "@/lib/dashboard/dueStatus";
 import { SyncStatusPill } from "@/components/ui/SyncStatusPill";
+import { useUser } from "@/components/auth/AuthBoundary";
 
 const LOG_TILES = [
   { href: "/log/fridge", emoji: "🧊", title: "Fridge round", sub: "AM & PM temps" },
@@ -30,6 +31,7 @@ function todayHeading(): string {
 }
 
 export default function DashboardPage() {
+  const user = useUser();
   const { data: units } = useCachedQuery("cd-fridge-units", fetchActiveFridgeUnits);
   const { data: todayLogs, loading } = useCachedQuery("cd-today-fridge-logs", fetchTodayFridgeLogs);
   const { data: cleaningTasks } = useCachedQuery("cd-cleaning-tasks", fetchActiveCleaningTasks);
@@ -70,18 +72,26 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2.5">
             <SyncStatusPill />
-            <Link
-              href="/settings"
-              className="h-11 w-11 flex items-center justify-center rounded-full bg-paper border border-line text-xl active:scale-95 transition-transform"
-              aria-label="Settings"
-            >
-              ⚙️
-            </Link>
+            {user?.role === "manager" && <Link href="/settings" className="h-11 w-11 flex items-center justify-center rounded-full bg-paper border border-line text-xl active:scale-95 transition-transform" aria-label="Settings">⚙️</Link>}
           </div>
         </div>
       </header>
 
       <div className="flex-1 px-4 py-5 max-w-2xl w-full mx-auto space-y-7">
+        <section className="rounded-2xl bg-ink text-paper px-5 py-4 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div><p className="text-xs uppercase tracking-[0.18em] text-paper/60 font-bold">Today&apos;s record</p><p className="mt-1 text-lg font-bold">{allCaughtUp ? "Ready for service" : `${fridgesDue + (cleaningDue ? 1 : 0)} checks left`}</p></div>
+            <span className="text-3xl" aria-hidden>{allCaughtUp ? "✓" : "◷"}</span>
+          </div>
+          {!allCaughtUp && <div className="mt-3 h-1.5 rounded-full bg-paper/20 overflow-hidden"><div className="h-full rounded-full bg-gold transition-all" style={{width:`${statuses.length ? Math.max(8,((statuses.length-fridgesDue)/statuses.length)*100) : 8}%`}} /></div>}
+          <p className="mt-2 text-xs text-paper/65">{allCaughtUp ? "All scheduled checks are recorded for this part of the day." : "Tap a due check below and keep the diary complete."}</p>
+        </section>
+        <Link href="/diary" className="block rounded-2xl border border-brand/20 bg-brand-soft px-5 py-4 active:scale-[0.99] transition-transform">
+          <div className="flex items-center justify-between gap-3">
+            <div><p className="text-xs uppercase tracking-[0.18em] text-brand font-bold">EHO ready</p><p className="mt-1 text-base font-bold text-brand-deep">Keep the last 28 days together</p><p className="mt-1 text-sm text-ink-soft">Open the diary to review records before an inspection.</p></div>
+            <span className="text-2xl text-brand/60" aria-hidden>›</span>
+          </div>
+        </Link>
         <Link
           href="/allergens"
           className="flex items-center gap-4 rounded-2xl bg-gold px-5 py-4.5 shadow-sm active:scale-[0.99] transition-transform"

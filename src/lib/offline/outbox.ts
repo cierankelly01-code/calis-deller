@@ -1,4 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
+import { getBrowserUser } from '@/lib/security/browser-session';
+import { validateWrite } from '@/lib/security/policy';
 
 // Local-first write queue. Every log entry is written here immediately —
 // the UI can confirm "Saved" regardless of connectivity — and a separate
@@ -19,6 +21,7 @@ export type OutboxEntry = {
   payload: Record<string, unknown>;
   queuedAt: string;
   synced: boolean;
+  ownerId?: string; // absent only on legacy entries; a manager must claim them
 };
 
 interface OutboxDB extends DBSchema {
@@ -45,16 +48,17 @@ export async function queueEntry(
   table: OutboxTable,
   payload: Record<string, unknown>
 ): Promise<string> {
-  const clientId =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const user = getBrowserUser();
+  if (!user) throw new Error('Sign in before saving');
+  const clientId = crypto.randomUUID();
+  const validated = validateWrite(table,'POST',{...payload,client_id:clientId});
 
   const db = await getDb();
   await db.put("outbox", {
     clientId,
     table,
-    payload: { ...payload, client_id: clientId },
+    payload: validated,
+    ownerId: user.id,
     queuedAt: new Date().toISOString(),
     synced: false,
   });
@@ -78,4 +82,21 @@ export async function markSynced(clientId: string): Promise<void> {
 export async function getUnsyncedCount(): Promise<number> {
   const entries = await getUnsyncedEntries();
   return entries.length;
+}
+
+export async function claimLegacyEntries(ownerId:string) {
+  const user=getBrowserUser();
+  if(user?.role!=='manager' || user.id!==ownerId) throw new Error('Manager required');
+  const db=await getDb();
+  const tx=db.transaction('outbox','readwrite');
+  for(const entry of await tx.store.getAll()) {
+    if(!entry.synced && !entry.ownerId) await tx.store.put({...entry,ownerId});
+  }
+  await tx.done;
+}
+export async function removeSyncedEntries() {
+  const db=await getDb();
+  const tx=db.transaction('outbox','readwrite');
+  for(const entry of await tx.store.getAll()) if(entry.synced) await tx.store.delete(entry.clientId);
+  await tx.done;
 }

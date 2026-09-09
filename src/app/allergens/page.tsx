@@ -6,6 +6,7 @@ import { useCachedQuery } from "@/lib/data/useCachedQuery";
 import { fetchActiveProducts, type ActiveProduct } from "@/lib/data/queries";
 import { ALLERGENS, allergenEmoji, allergenLabel } from "@/lib/allergens";
 import { supabase } from "@/lib/supabase/client";
+import { useUser } from '@/components/auth/AuthBoundary';
 
 // The screen staff open mid-service when a customer asks "does this contain
 // nuts?" — search must be instant and the answer unmissable. Tapping an
@@ -40,13 +41,14 @@ function AllergenChips({ keys, tone }: { keys: string[]; tone: "contains" | "may
 }
 
 function ProductCard({ product, onEdit }: { product: ActiveProduct; onEdit: () => void }) {
+  const canEdit = useUser()?.role === 'manager';
   return (
     <div className="rounded-2xl bg-surface border border-line shadow-sm p-4 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <p className="text-lg font-bold text-ink">{product.name}</p>
-        <button type="button" onClick={onEdit} className="text-sm font-semibold text-brand shrink-0">
+        {canEdit && <button type="button" onClick={onEdit} className="text-sm font-semibold text-brand shrink-0">
           Edit
-        </button>
+        </button>}
       </div>
       {product.allergens.length === 0 && product.may_contain.length === 0 ? (
         <p className="text-brand font-medium">✓ No declared allergens</p>
@@ -62,6 +64,7 @@ function ProductCard({ product, onEdit }: { product: ActiveProduct; onEdit: () =
 }
 
 export default function AllergensPage() {
+  const canEdit = useUser()?.role === 'manager';
   const { data: products, loading } = useCachedQuery("cd-products", fetchActiveProducts);
   const [search, setSearch] = useState("");
   const [filterKey, setFilterKey] = useState<string | null>(null);
@@ -89,11 +92,13 @@ export default function AllergensPage() {
   }, [searched, filterKey]);
 
   function startAdd() {
+    if (!canEdit) return;
     setSaveError(null);
     setEditor({ id: null, name: search.trim(), allergens: [], mayContain: [], notes: "" });
   }
 
   function startEdit(product: ActiveProduct) {
+    if (!canEdit) return;
     setSaveError(null);
     setEditor({
       id: product.id,
@@ -122,7 +127,7 @@ export default function AllergensPage() {
   }
 
   async function saveProduct(deactivate = false) {
-    if (!editor) return;
+    if (!editor || !canEdit) return;
     setSavingProduct(true);
     setSaveError(null);
     try {
@@ -341,13 +346,13 @@ export default function AllergensPage() {
           </div>
         )}
 
-        <button
+        {canEdit && <button
           type="button"
           onClick={startAdd}
           className="w-full h-14 rounded-2xl bg-brand text-white text-lg font-semibold shadow-sm active:bg-brand-deep"
         >
           + Add a product
-        </button>
+        </button>}
 
         <p className="text-xs text-ink-faint text-center pb-4">
           Contains = recipe ingredient · May contain = cross-contamination risk

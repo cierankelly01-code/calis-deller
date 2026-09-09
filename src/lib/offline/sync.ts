@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase/client";
 import { getUnsyncedEntries, markSynced, type OutboxEntry } from "@/lib/offline/outbox";
+import { getBrowserUser } from '@/lib/security/browser-session';
 
 // Safari on iOS has no Background Sync API, so this in-app worker is the
 // real sync mechanism (not the service worker) — see public/sw.js. It's
@@ -23,15 +24,15 @@ async function pushEntry(entry: OutboxEntry): Promise<boolean> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .insert(entry.payload as any);
 
-  if (error && error.code !== "23505") {
-    console.error(`Sync failed for ${entry.table}/${entry.clientId}`, error);
+  if (error) {
     return false;
   }
   return true;
 }
 
 export async function syncOutbox(): Promise<{ synced: number; remaining: number }> {
-  if (syncing || (typeof navigator !== "undefined" && !navigator.onLine)) {
+  const user = getBrowserUser();
+  if (!user || syncing || (typeof navigator !== "undefined" && !navigator.onLine)) {
     const remaining = (await getUnsyncedEntries()).length;
     return { synced: 0, remaining };
   }
@@ -41,6 +42,7 @@ export async function syncOutbox(): Promise<{ synced: number; remaining: number 
   try {
     const entries = await getUnsyncedEntries();
     for (const entry of entries) {
+      if (entry.ownerId !== user.id || getBrowserUser()?.id !== user.id) continue;
       const ok = await pushEntry(entry);
       if (ok) {
         await markSynced(entry.clientId);
@@ -57,7 +59,10 @@ export async function syncOutbox(): Promise<{ synced: number; remaining: number 
 
 export function startSyncLoop(onChange?: (remaining: number) => void): () => void {
   const runAndReport = () => {
-    syncOutbox().then(({ remaining }) => onChange?.(remaining));
+    syncOutbox().then(({ remaining }) => onChange?.(remaining)).catch(() => {
+      // A network/storage failure must retain queued entries for the next try.
+      onChange?.(-1);
+    });
   };
 
   const onVisibilityChange = () => {

@@ -9,3 +9,10 @@ supabase
 README.md
 AGENTS.md
 CLAUDE.md
+tests
+artifacts
+*.key
+*.pem
+*.p12
+*.pfx
+*.log
