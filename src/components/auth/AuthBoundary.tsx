@@ -22,7 +22,7 @@ export function AuthBoundary({children}:{children:React.ReactNode}) {
     let verifiedAt=0;
     async function check() {
       try {
-        const response=await fetch('/api/auth',{cache:'no-store'});
+        const response=await fetch('/api/auth',{cache:'no-store', signal: AbortSignal.timeout(8000)});
         if(cancelled)return;
         if(response.ok) {
           const next:BrowserUser=await response.json();
@@ -32,10 +32,10 @@ export function AuthBoundary({children}:{children:React.ReactNode}) {
         } else if(response.status===401) {
           setBrowserUser(null);setUser(null);clearDisplayCache();
         } else {setError('Unable to verify access. Please retry.');}
-      } catch {
+      } catch (err) {
         // Offline capture continues in an already verified, open session.
         // Reloading offline requires reconnecting to verify the account.
-        if(!verifiedAt)setError('Connect to the internet to sign in.');
+        if(!verifiedAt)setError(err instanceof DOMException && err.name === 'TimeoutError' ? 'The server is taking too long to respond. Ask the manager to check the Coolify deployment.' : 'Connect to the internet to sign in.');
       } finally {if(!cancelled)setLoading(false);}
       if(verifiedAt && Date.now()-verifiedAt>12*60*60*1000) {setBrowserUser(null);setUser(null);}
     }
