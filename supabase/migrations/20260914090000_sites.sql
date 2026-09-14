@@ -46,7 +46,11 @@ begin
     'fridge_temp_logs','cooking_logs','delivery_logs','cleaning_logs','probe_calibration_logs'
   ] loop
     execute format('alter table public.%I add column if not exists site_id uuid references public.sites(id)', target_table);
+    -- The write-limit trigger requires a signed-in food-log account; this
+    -- one-off backfill runs from the SQL editor, so pause it for the update.
+    execute format('alter table public.%I disable trigger food_log_rate_limit', target_table);
     execute format('update public.%I set site_id = %L where site_id is null', target_table, stratford);
+    execute format('alter table public.%I enable trigger food_log_rate_limit', target_table);
     execute format('alter table public.%I alter column site_id set not null', target_table);
     execute format('create index if not exists %I on public.%I (site_id)', target_table || '_site_id_idx', target_table);
   end loop;
