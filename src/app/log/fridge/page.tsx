@@ -135,6 +135,14 @@ export default function FridgeLogPage() {
 
   const roundFinished = (units ?? []).length > 0 && remainingUnits.length === 0;
 
+  // Why Save is greyed out, in the order staff hit the blockers.
+  const blocker = !staffId
+    ? (staff ?? []).length === 0 ? "No staff names set up yet — a manager adds them in Settings › Staff" : "Tap who's doing the round first"
+    : !selectedUnit ? "Pick a unit"
+    : numericReading === null ? "Enter the reading"
+    : needsCorrectiveAction && correctiveAction.trim().length === 0 ? "Out of range — say what you did about it"
+    : null;
+
   return (
     <div className="flex flex-col flex-1">
       <PageHeader title="Fridge & Freezer Round" />
@@ -262,6 +270,7 @@ export default function FridgeLogPage() {
         saving={saving}
         saved={false}
         onSave={handleSave}
+        hint={blocker}
         label={
           selectedUnit
             ? remainingUnits.filter((u) => u.id !== selectedUnit.id).length > 0

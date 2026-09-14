@@ -54,6 +54,13 @@ export default function CookingLogPage() {
     (!needsCorrectiveAction || correctiveAction.trim().length > 0) &&
     !saving;
 
+  const blocker = !staffId
+    ? (staff ?? []).length === 0 ? "No staff names set up yet — a manager adds them in Settings › Staff" : "Tap who's checking first"
+    : productName.trim().length === 0 ? "Pick or type the product"
+    : numericTemp === null ? "Enter the core temperature"
+    : needsCorrectiveAction && correctiveAction.trim().length === 0 ? "Below target — say what you did about it"
+    : null;
+
   function pickProduct(id: string, name: string) {
     if (productId === id) {
       setProductId(null);
@@ -237,7 +244,7 @@ export default function CookingLogPage() {
         )}
       </div>
 
-      <SaveBar disabled={!canSave} saving={saving} saved={false} onSave={handleSave} />
+      <SaveBar disabled={!canSave} saving={saving} saved={false} onSave={handleSave} hint={blocker} />
     </div>
   );
 }

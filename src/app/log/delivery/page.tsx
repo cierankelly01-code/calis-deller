@@ -101,6 +101,12 @@ export default function DeliveryLogPage() {
     (accepted || rejectionReason.trim().length > 0) &&
     !saving;
 
+  const blocker = !staffId
+    ? (staff ?? []).length === 0 ? "No staff names set up yet — a manager adds them in Settings › Staff" : "Tap who's receiving the delivery first"
+    : supplierName.trim().length === 0 ? "Pick or type the supplier"
+    : !accepted && rejectionReason.trim().length === 0 ? "Rejected — give the reason"
+    : null;
+
   function pickSupplier(id: string, name: string) {
     if (supplierId === id) {
       setSupplierId(null);
@@ -271,7 +277,7 @@ export default function DeliveryLogPage() {
         </section>
       </div>
 
-      <SaveBar disabled={!canSave} saving={saving} saved={false} onSave={handleSave} />
+      <SaveBar disabled={!canSave} saving={saving} saved={false} onSave={handleSave} hint={blocker} />
     </div>
   );
 }

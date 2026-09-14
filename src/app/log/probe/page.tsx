@@ -52,6 +52,12 @@ export default function ProbeCalibrationPage() {
     (pass !== false || correctiveAction.trim().length > 0) &&
     !saving;
 
+  const blocker = !staffId
+    ? (staff ?? []).length === 0 ? "No staff names set up yet — a manager adds them in Settings › Staff" : "Tap who's checking first"
+    : numericReading === null ? "Enter the probe reading"
+    : pass === false && correctiveAction.trim().length === 0 ? "Failed — say what you did about it"
+    : null;
+
   async function handleSave() {
     if (!canSave || numericReading === null || !staffId || pass === null) return;
     setSaving(true);
@@ -146,7 +152,7 @@ export default function ProbeCalibrationPage() {
         )}
       </div>
 
-      <SaveBar disabled={!canSave} saving={saving} saved={false} onSave={handleSave} />
+      <SaveBar disabled={!canSave} saving={saving} saved={false} onSave={handleSave} hint={blocker} />
     </div>
   );
 }
