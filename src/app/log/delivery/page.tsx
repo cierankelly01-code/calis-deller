@@ -133,8 +133,8 @@ export default function DeliveryLogPage() {
       void syncOutbox().catch(() => {});
       setShowSaved(true);
       setTimeout(() => router.push("/"), 650);
-    } catch {
-      setSaveError("Could not save on this device. Check the fields, device time and available storage, then retry.");
+    } catch (err) {
+      setSaveError(`Could not save on this device: ${err instanceof Error ? err.message : "unknown error"}. Check the fields, device time and available storage, then retry.`);
     } finally {
       setSaving(false);
     }

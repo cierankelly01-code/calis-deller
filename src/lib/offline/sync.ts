@@ -12,6 +12,12 @@ import { getBrowserUser } from '@/lib/security/browser-session';
 const SYNC_INTERVAL_MS = 30_000;
 
 let syncing = false;
+// Why the most recent push was refused, in words staff can read off the
+// screen (see SyncStatusPill). Cleared as soon as a push succeeds.
+let lastError: string | null = null;
+export function getLastSyncError(): string | null {
+  return lastError;
+}
 
 async function pushEntry(entry: OutboxEntry): Promise<boolean> {
   // Plain insert, never upsert: log tables are append-only (RLS denies
@@ -25,8 +31,11 @@ async function pushEntry(entry: OutboxEntry): Promise<boolean> {
     .insert(entry.payload as any);
 
   if (error) {
+    const detail = (error as { details?: unknown }).details;
+    lastError = typeof detail === 'string' && detail ? detail : error.message || 'Server refused the entry';
     return false;
   }
+  lastError = null;
   return true;
 }
 

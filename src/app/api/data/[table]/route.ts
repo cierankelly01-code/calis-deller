@@ -44,8 +44,13 @@ async function handle(request:Request, context:Context) {
           if (Array.isArray(rows) && rows.length === 1) return new Response(null,{status:204,headers:{'Cache-Control':'no-store'}});
         }
       }
-      if (problem.code === 'P0001') return json({message:'Write limit reached. Retry in a minute.'},429);
-      return json({message:response.status === 401 ? 'Sign in required' : 'Unable to save or load this entry',code:'REQUEST_FAILED'},[400,401,403,409,429].includes(response.status)?response.status:502);
+      if (problem.code === 'P0001' && /write limit/i.test(problem.message ?? '')) return json({message:'Write limit reached. Retry in a minute.'},429);
+      // The database's own reason (constraint / trigger message) is what staff
+      // need to read out when a save is refused, and what the container log
+      // needs for diagnosis. Trimmed; it never includes row data.
+      const reason = typeof problem.message === 'string' ? problem.message.replace(/\s+/g,' ').slice(0,200) : '';
+      console.error(`[data] ${request.method} ${table} -> ${response.status} ${problem.code ?? ''} ${reason}`);
+      return json({message:response.status === 401 ? 'Sign in required' : 'Unable to save or load this entry',details:reason,code:'REQUEST_FAILED'},[400,401,403,409,429].includes(response.status)?response.status:502);
     }
     if (request.method === 'PATCH') {
       const updated = await response.json();

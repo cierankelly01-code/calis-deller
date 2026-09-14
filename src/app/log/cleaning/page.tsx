@@ -32,6 +32,7 @@ export default function CleaningLogPage() {
   // Ticks made this visit — the server list (todayLogs) refreshes on its own
   // schedule, so completed state is the union of both.
   const [tickedNow, setTickedNow] = useState<Set<string>>(new Set());
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const sessionTasks = useMemo(
     () => (tasks ?? []).filter((t) => t.session === session || t.session === "both"),
@@ -55,31 +56,42 @@ export default function CleaningLogPage() {
   async function tickTask(taskId: string) {
     if (!staffId || isDone(taskId)) return;
     const recordedAt = new Date().toISOString();
-    const clientId = await queueEntry("cleaning_logs", {
-      staff_id: staffId,
-      task_id: taskId,
-      session,
-      recorded_at: recordedAt,
-    });
-    appendToTodayCache(`cd-today-cleaning-logs:${site.id}`, {
-      id: clientId,
-      task_id: taskId,
-      session,
-      recorded_at: recordedAt,
-    });
-    syncOutbox();
-    setTickedNow((prev) => new Set(prev).add(`${session}:${taskId}`));
+    try {
+      const clientId = await queueEntry("cleaning_logs", {
+        staff_id: staffId,
+        task_id: taskId,
+        session,
+        recorded_at: recordedAt,
+      });
+      appendToTodayCache(`cd-today-cleaning-logs:${site.id}`, {
+        id: clientId,
+        task_id: taskId,
+        session,
+        recorded_at: recordedAt,
+      });
+      void syncOutbox().catch(() => {});
+      setSaveError(null);
+      setTickedNow((prev) => new Set(prev).add(`${session}:${taskId}`));
+    } catch (err) {
+      setSaveError(`Could not save: ${err instanceof Error ? err.message : "unknown error"}`);
+      throw err;
+    }
   }
 
   async function tickAllRemaining() {
-    for (const task of remaining) {
-      await tickTask(task.id);
+    try {
+      for (const task of remaining) {
+        await tickTask(task.id);
+      }
+    } catch {
+      // tickTask has already shown the error; stop the run there.
     }
   }
 
   return (
     <div className="flex flex-col flex-1">
       <PageHeader title="Cleaning Checklist" />
+      {saveError && <p role="alert" className="px-4 py-2 text-danger">{saveError}</p>}
 
       <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
         <section>
@@ -141,7 +153,7 @@ export default function CleaningLogPage() {
                   key={task.id}
                   type="button"
                   disabled={done || !staffId}
-                  onClick={() => tickTask(task.id)}
+                  onClick={() => void tickTask(task.id).catch(() => {})}
                   className={`w-full flex items-center gap-3 rounded-2xl px-4 py-4 text-left text-base font-semibold transition-all active:scale-[0.99] ${
                     done
                       ? "bg-brand-soft text-brand-deep border border-brand/20"

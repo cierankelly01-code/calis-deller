@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { startSyncLoop } from "@/lib/offline/sync";
+import { getLastSyncError, startSyncLoop } from "@/lib/offline/sync";
 
 // Lives in every header: quiet reassurance that nothing is lost when the
 // wifi drops. Offline beats unsynced — staff care that saving still works,
@@ -38,6 +38,15 @@ export function SyncStatusPill() {
   if (remaining === -1) return <span role="alert" className="text-danger text-xs">Sync needs attention — entries kept on device</span>;
 
   if (remaining !== null && remaining > 0) {
+    const reason = getLastSyncError();
+    if (reason) {
+      return (
+        <span role="alert" className="inline-flex max-w-[60vw] items-center gap-1.5 rounded-full bg-danger-soft text-danger-deep text-xs font-semibold px-3 py-1.5">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-danger" aria-hidden />
+          <span className="truncate">{remaining} not accepted by server: {reason}</span>
+        </span>
+      );
+    }
     return (
       <span
         role="status"
