@@ -8,6 +8,7 @@ import { NumberPad } from "@/components/ui/NumberPad";
 import { SaveBar } from "@/components/ui/SaveBar";
 import { SavedOverlay } from "@/components/ui/SavedOverlay";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
+import { useSite } from "@/lib/site/SiteContext";
 import { fetchActiveStaff, fetchActiveSuppliers } from "@/lib/data/queries";
 import { useRememberedStaff } from "@/lib/staffMemory";
 import { queueEntry } from "@/lib/offline/outbox";
@@ -62,8 +63,9 @@ function ToggleRow({
 
 export default function DeliveryLogPage() {
   const router = useRouter();
-  const { data: staff } = useCachedQuery("cd-staff", fetchActiveStaff);
-  const { data: suppliers } = useCachedQuery("cd-suppliers", fetchActiveSuppliers);
+  const { site } = useSite();
+  const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
+  const { data: suppliers } = useCachedQuery(`cd-suppliers:${site.id}`, () => fetchActiveSuppliers(site.id));
 
   const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
   const [supplierId, setSupplierId] = useState<string | null>(null);

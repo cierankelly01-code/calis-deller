@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
+import { useSite } from "@/lib/site/SiteContext";
 import { fetchActiveProducts, type ActiveProduct } from "@/lib/data/queries";
 import { ALLERGENS, allergenEmoji, allergenLabel } from "@/lib/allergens";
 import { supabase } from "@/lib/supabase/client";
@@ -65,7 +66,8 @@ function ProductCard({ product, onEdit }: { product: ActiveProduct; onEdit: () =
 
 export default function AllergensPage() {
   const canEdit = useUser()?.role === 'manager';
-  const { data: products, loading } = useCachedQuery("cd-products", fetchActiveProducts);
+  const { site } = useSite();
+  const { data: products, loading } = useCachedQuery(`cd-products:${site.id}`, () => fetchActiveProducts(site.id));
   const [search, setSearch] = useState("");
   const [filterKey, setFilterKey] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
@@ -132,6 +134,7 @@ export default function AllergensPage() {
     setSaveError(null);
     try {
       const payload = {
+        site_id: site.id,
         name: editor.name.trim(),
         allergens: editor.allergens,
         may_contain: editor.mayContain,
@@ -145,9 +148,9 @@ export default function AllergensPage() {
       const { error } = await query;
       if (error) throw error;
 
-      const fresh = await fetchActiveProducts();
+      const fresh = await fetchActiveProducts(site.id);
       setLocalProducts(fresh);
-      window.localStorage.setItem("cd-products", JSON.stringify(fresh));
+      window.localStorage.setItem(`cd-products:${site.id}`, JSON.stringify(fresh));
       setEditor(null);
     } catch (err) {
       setSaveError(

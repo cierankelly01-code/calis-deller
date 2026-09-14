@@ -7,6 +7,7 @@ import { NumberPad } from "@/components/ui/NumberPad";
 import { SaveBar } from "@/components/ui/SaveBar";
 import { SavedOverlay } from "@/components/ui/SavedOverlay";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
+import { useSite } from "@/lib/site/SiteContext";
 import { fetchActiveStaff, fetchActiveProducts } from "@/lib/data/queries";
 import { useRememberedStaff } from "@/lib/staffMemory";
 import { queueEntry } from "@/lib/offline/outbox";
@@ -25,8 +26,9 @@ const CHECKS: Record<CheckType, { label: string; target: number; wording: string
 };
 
 export default function CookingLogPage() {
-  const { data: staff } = useCachedQuery("cd-staff", fetchActiveStaff);
-  const { data: products } = useCachedQuery("cd-products", fetchActiveProducts);
+  const { site } = useSite();
+  const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
+  const { data: products } = useCachedQuery(`cd-products:${site.id}`, () => fetchActiveProducts(site.id));
 
   const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
   const [checkType, setCheckType] = useState<CheckType>("cooking");

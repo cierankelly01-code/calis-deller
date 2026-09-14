@@ -6,6 +6,7 @@ import { clearDisplayCache, setBrowserUser, type BrowserUser } from '@/lib/secur
 import { claimLegacyEntries, getUnsyncedEntries, removeSyncedEntries } from '@/lib/offline/outbox';
 import { syncOutbox } from '@/lib/offline/sync';
 import { MobileNav } from '@/components/ui/MobileNav';
+import { SiteProvider, SiteSwitcher } from '@/lib/site/SiteContext';
 
 const UserContext = createContext<BrowserUser|null>(null);
 export function useUser() {return useContext(UserContext);}
@@ -100,10 +101,17 @@ export function AuthBoundary({children}:{children:React.ReactNode}) {
     </div>
   </main>;
   return <UserContext.Provider value={user}>
-    <div className="px-4 py-2 border-b border-line text-sm flex justify-between gap-3"><span>{user.email} · {user.role}</span><button onClick={signOut} disabled={busy} className="underline">Sign out</button></div>
-    {error && <p role="alert" className="px-4 py-2 text-danger">{error}</p>}
-    {legacy>0 && <div role="status" className="px-4 py-3 bg-gold-soft">{legacy} entries saved before account sign-in need manager review. {user.role==='manager' && <button onClick={recoverLegacy} disabled={busy} className="underline font-bold">Claim and sync this device&apos;s entries</button>}</div>}
-    <div className="pb-16 md:pb-0">{children}</div>
-    <MobileNav />
+    <SiteProvider>
+      <div className="border-b border-line bg-surface pt-[env(safe-area-inset-top)] print:hidden">
+        <div className="max-w-2xl mx-auto px-4 pt-3 pb-2 space-y-2">
+          <SiteSwitcher />
+          <div className="text-xs text-ink-soft flex justify-between gap-3"><span className="truncate">{user.email} · {user.role}</span><button onClick={signOut} disabled={busy} className="underline shrink-0">Sign out</button></div>
+        </div>
+      </div>
+      {error && <p role="alert" className="px-4 py-2 text-danger">{error}</p>}
+      {legacy>0 && <div role="status" className="px-4 py-3 bg-gold-soft">{legacy} entries saved before account sign-in need manager review. {user.role==='manager' && <button onClick={recoverLegacy} disabled={busy} className="underline font-bold">Claim and sync this device&apos;s entries</button>}</div>}
+      <div className="pb-16 md:pb-0">{children}</div>
+      <MobileNav />
+    </SiteProvider>
   </UserContext.Provider>;
 }

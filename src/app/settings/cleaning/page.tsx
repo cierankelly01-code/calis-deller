@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { supabase } from "@/lib/supabase/client";
+import { useSite } from "@/lib/site/SiteContext";
 import type { CleaningTaskRow } from "@/types/database";
 
 type Session = "open" | "close" | "both";
@@ -14,6 +15,7 @@ const SESSION_LABELS: Record<Session, string> = {
 };
 
 export default function CleaningSettingsPage() {
+  const { site } = useSite();
   const [tasks, setTasks] = useState<CleaningTaskRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +24,7 @@ export default function CleaningSettingsPage() {
   const [session, setSession] = useState<Session>("both");
 
   const fetchTasks = () =>
-    supabase.from("cleaning_tasks").select("*").eq("active", true).order("sort_order");
+    supabase.from("cleaning_tasks").select("*").eq("site_id", site.id).eq("active", true).order("sort_order");
 
   function applyResult({ data, error: fetchError }: Awaited<ReturnType<typeof fetchTasks>>) {
     if (fetchError) {
@@ -30,7 +32,7 @@ export default function CleaningSettingsPage() {
       return;
     }
     setTasks(data ?? []);
-    window.localStorage.removeItem("cd-cleaning-tasks");
+    window.localStorage.removeItem(`cd-cleaning-tasks:${site.id}`);
   }
 
   async function refresh() {
@@ -40,7 +42,7 @@ export default function CleaningSettingsPage() {
   useEffect(() => {
     fetchTasks().then(applyResult);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [site.id]);
 
   async function run(action: () => PromiseLike<{ error: unknown }>) {
     setBusy(true);
@@ -61,7 +63,7 @@ export default function CleaningSettingsPage() {
     if (!trimmed || busy) return;
     const nextSort = Math.max(0, ...(tasks ?? []).map((t) => t.sort_order)) + 1;
     run(() =>
-      supabase.from("cleaning_tasks").insert({ name: trimmed, session, sort_order: nextSort })
+      supabase.from("cleaning_tasks").insert({ site_id: site.id, name: trimmed, session, sort_order: nextSort })
     );
     setName("");
   }

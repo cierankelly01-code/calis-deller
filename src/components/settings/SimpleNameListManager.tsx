@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { useSite } from "@/lib/site/SiteContext";
 
 // Generic add/remove manager for config tables that are just an ordered
 // list of names (staff, suppliers). "Remove" deactivates — config rows are
@@ -11,7 +12,7 @@ type NamedRow = { id: string; name: string; sort_order: number };
 
 type SimpleNameListManagerProps = {
   table: "staff" | "suppliers";
-  cacheKey: string; // localStorage key used by useCachedQuery elsewhere — cleared on change
+  cacheKey: string; // localStorage key prefix used by useCachedQuery elsewhere (site-suffixed) — cleared on change
   addLabel: string;
   placeholder: string;
 };
@@ -22,13 +23,14 @@ export function SimpleNameListManager({
   addLabel,
   placeholder,
 }: SimpleNameListManagerProps) {
+  const { site } = useSite();
   const [rows, setRows] = useState<NamedRow[] | null>(null);
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchRows = () =>
-    supabase.from(table).select("id, name, sort_order").eq("active", true).order("sort_order");
+    supabase.from(table).select("id, name, sort_order").eq("site_id", site.id).eq("active", true).order("sort_order");
 
   function applyResult({ data, error: fetchError }: Awaited<ReturnType<typeof fetchRows>>) {
     if (fetchError) {
@@ -37,7 +39,7 @@ export function SimpleNameListManager({
     }
     setRows(data ?? []);
     // Pickers elsewhere cache under this key; force them to refetch.
-    window.localStorage.removeItem(cacheKey);
+    window.localStorage.removeItem(`${cacheKey}:${site.id}`);
   }
 
   async function refresh() {
@@ -47,7 +49,7 @@ export function SimpleNameListManager({
   useEffect(() => {
     fetchRows().then(applyResult);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [site.id]);
 
   async function run(action: () => PromiseLike<{ error: unknown }>) {
     setBusy(true);
@@ -67,7 +69,7 @@ export function SimpleNameListManager({
     const name = newName.trim();
     if (!name) return;
     const nextSort = Math.max(0, ...(rows ?? []).map((r) => r.sort_order)) + 1;
-    run(() => supabase.from(table).insert({ name, sort_order: nextSort }));
+    run(() => supabase.from(table).insert({ site_id: site.id, name, sort_order: nextSort }));
     setNewName("");
   }
 

@@ -52,7 +52,7 @@ function localTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
-export async function buildExportCsv(fromDateStr: string, toDateStr: string): Promise<string> {
+export async function buildExportCsv(siteId: string, fromDateStr: string, toDateStr: string): Promise<string> {
   const start = new Date(`${fromDateStr}T00:00:00`);
   const end = new Date(`${toDateStr}T00:00:00`);
   end.setDate(end.getDate() + 1); // inclusive of the "to" day
@@ -61,14 +61,14 @@ export async function buildExportCsv(fromDateStr: string, toDateStr: string): Pr
 
   // Name lookups include inactive rows so historic records still resolve.
   const [fridge, cooking, deliveries, cleaning, probe, staff, units, tasks] = await Promise.all([
-    supabase.from("fridge_temp_logs").select("*").gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
-    supabase.from("cooking_logs").select("*").gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
-    supabase.from("delivery_logs").select("*").gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
-    supabase.from("cleaning_logs").select("*").gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
-    supabase.from("probe_calibration_logs").select("*").gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
-    supabase.from("staff").select("id, name"),
-    supabase.from("fridge_units").select("id, name"),
-    supabase.from("cleaning_tasks").select("id, name"),
+    supabase.from("fridge_temp_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("cooking_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("delivery_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("cleaning_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("probe_calibration_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("staff").select("id, name").eq("site_id", siteId),
+    supabase.from("fridge_units").select("id, name").eq("site_id", siteId),
+    supabase.from("cleaning_tasks").select("id, name").eq("site_id", siteId),
   ]);
 
   for (const result of [fridge, cooking, deliveries, cleaning, probe, staff, units, tasks]) {

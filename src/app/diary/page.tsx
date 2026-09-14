@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { buildExportCsv, downloadCsv } from "@/lib/export/csv";
 import { supabase } from "@/lib/supabase/client";
+import { useSite } from "@/lib/site/SiteContext";
 import type {
   CleaningLogRow,
   CookingLogRow,
@@ -38,7 +39,7 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
-async function fetchDay(dateStr: string): Promise<DayData> {
+async function fetchDay(siteId: string, dateStr: string): Promise<DayData> {
   const start = new Date(`${dateStr}T00:00:00`);
   const end = new Date(start);
   end.setDate(end.getDate() + 1);
@@ -46,14 +47,14 @@ async function fetchDay(dateStr: string): Promise<DayData> {
   const to = end.toISOString();
 
   const [fridge, cooking, deliveries, cleaning, probe, staff, units, tasks] = await Promise.all([
-    supabase.from("fridge_temp_logs").select("*").gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
-    supabase.from("cooking_logs").select("*").gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
-    supabase.from("delivery_logs").select("*").gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
-    supabase.from("cleaning_logs").select("*").gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
-    supabase.from("probe_calibration_logs").select("*").gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
-    supabase.from("staff").select("id, name"),
-    supabase.from("fridge_units").select("id, name"),
-    supabase.from("cleaning_tasks").select("id, name"),
+    supabase.from("fridge_temp_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("cooking_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("delivery_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("cleaning_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("probe_calibration_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("staff").select("id, name").eq("site_id", siteId),
+    supabase.from("fridge_units").select("id, name").eq("site_id", siteId),
+    supabase.from("cleaning_tasks").select("id, name").eq("site_id", siteId),
   ]);
 
   for (const result of [fridge, cooking, deliveries, cleaning, probe, staff, units, tasks]) {
@@ -99,6 +100,7 @@ function Row({ children, flag }: { children: React.ReactNode; flag?: boolean }) 
 }
 
 function ExportCard() {
+  const { site } = useSite();
   const [fromStr, setFromStr] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
@@ -110,8 +112,8 @@ function ExportCard() {
   async function handleExport() {
     setState("working");
     try {
-      const csv = await buildExportCsv(fromStr, toStr);
-      downloadCsv(csv, `food-safety-diary_${fromStr}_to_${toStr}.csv`);
+      const csv = await buildExportCsv(site.id, fromStr, toStr);
+      downloadCsv(csv, `food-safety-diary_${site.slug}_${fromStr}_to_${toStr}.csv`);
       setState("idle");
     } catch {
       setState("error");
@@ -165,10 +167,12 @@ function ExportCard() {
 }
 
 export default function DiaryPage() {
+  const { site } = useSite();
   const [dateStr, setDateStr] = useState(() => toDateInputValue(new Date()));
   // Tagging the result with the date it was fetched for makes "loading"
   // derivable (result is stale ⇒ loading) — no setState in the effect body.
   const [result, setResult] = useState<{
+    siteId: string;
     date: string;
     data: DayData | null;
     error: string | null;
@@ -176,13 +180,14 @@ export default function DiaryPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchDay(dateStr)
+    fetchDay(site.id, dateStr)
       .then((day) => {
-        if (!cancelled) setResult({ date: dateStr, data: day, error: null });
+        if (!cancelled) setResult({ siteId: site.id, date: dateStr, data: day, error: null });
       })
       .catch(() => {
         if (!cancelled)
           setResult({
+            siteId: site.id,
             date: dateStr,
             data: null,
             error: "Couldn't load records — check the internet connection.",
@@ -191,9 +196,9 @@ export default function DiaryPage() {
     return () => {
       cancelled = true;
     };
-  }, [dateStr]);
+  }, [site.id, dateStr]);
 
-  const loading = result?.date !== dateStr;
+  const loading = result?.date !== dateStr || result?.siteId !== site.id;
   const data = loading ? null : result?.data ?? null;
   const error = loading ? null : result?.error ?? null;
 
@@ -225,7 +230,7 @@ export default function DiaryPage() {
       <div className="flex-1 overflow-y-auto px-4 py-6 max-w-2xl w-full mx-auto space-y-6 print:overflow-visible">
         {/* Print-only letterhead: browser Print → Save as PDF is the PDF export. */}
         <div className="hidden print:block text-center space-y-1">
-          <p className="font-display text-2xl font-semibold">Kelly&apos;s Deli — Food Safety Diary</p>
+          <p className="font-display text-2xl font-semibold">{site.name} — Food Safety Diary</p>
           <p className="text-sm">
             Records are append-only: entries cannot be edited or deleted after saving.
           </p>

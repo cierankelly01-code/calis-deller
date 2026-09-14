@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StaffTilePicker } from "@/components/ui/StaffTilePicker";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
+import { useSite } from "@/lib/site/SiteContext";
 import {
   fetchActiveStaff,
   fetchActiveCleaningTasks,
@@ -21,9 +22,10 @@ function defaultSession(): Session {
 }
 
 export default function CleaningLogPage() {
-  const { data: staff } = useCachedQuery("cd-staff", fetchActiveStaff);
-  const { data: tasks } = useCachedQuery("cd-cleaning-tasks", fetchActiveCleaningTasks);
-  const { data: todayLogs } = useCachedQuery("cd-today-cleaning-logs", fetchTodayCleaningLogs);
+  const { site } = useSite();
+  const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
+  const { data: tasks } = useCachedQuery(`cd-cleaning-tasks:${site.id}`, () => fetchActiveCleaningTasks(site.id));
+  const { data: todayLogs } = useCachedQuery(`cd-today-cleaning-logs:${site.id}`, () => fetchTodayCleaningLogs(site.id));
 
   const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
   const [session, setSession] = useState<Session>(defaultSession());
@@ -59,7 +61,7 @@ export default function CleaningLogPage() {
       session,
       recorded_at: recordedAt,
     });
-    appendToTodayCache("cd-today-cleaning-logs", {
+    appendToTodayCache(`cd-today-cleaning-logs:${site.id}`, {
       id: clientId,
       task_id: taskId,
       session,

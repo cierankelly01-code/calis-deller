@@ -21,7 +21,7 @@ async function handle(request:Request, context:Context) {
       catch(error) {if(error instanceof HttpError) throw error;throw new HttpError(400,'Invalid entry. Check the fields and device time.');}
     } else {
       for (const [key,value] of query) {
-        if (!['select','order','active','recorded_at','id','limit','offset','client_id'].includes(key) || value.length > 1000) throw new HttpError(400,'Unsupported query');
+        if (!['select','order','active','recorded_at','id','limit','offset','client_id','site_id'].includes(key) || value.length > 1000) throw new HttpError(400,'Unsupported query');
       }
       if (query.has('select') && !/^(\*|[a-z_]+(?:,[a-z_]+)*)$/.test(query.get('select')!)) throw new HttpError(400,'Only table columns may be selected');
       if (query.has('limit') && !/^\d{1,4}$/.test(query.get('limit')!)) throw new HttpError(400,'Invalid limit');

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { supabase } from "@/lib/supabase/client";
+import { useSite } from "@/lib/site/SiteContext";
 import type { FridgeUnitRow } from "@/types/database";
 
 // Fridges default to the SFBB chilled band (1–5°C), freezers to −25…−18°C.
@@ -16,6 +17,7 @@ const DEFAULTS = {
 type UnitType = "fridge" | "freezer";
 
 export default function UnitsSettingsPage() {
+  const { site } = useSite();
   const [units, setUnits] = useState<FridgeUnitRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +28,7 @@ export default function UnitsSettingsPage() {
   const [max, setMax] = useState<string>(DEFAULTS.fridge.max);
 
   const fetchUnits = () =>
-    supabase.from("fridge_units").select("*").eq("active", true).order("sort_order");
+    supabase.from("fridge_units").select("*").eq("site_id", site.id).eq("active", true).order("sort_order");
 
   function applyResult({ data, error: fetchError }: Awaited<ReturnType<typeof fetchUnits>>) {
     if (fetchError) {
@@ -34,7 +36,7 @@ export default function UnitsSettingsPage() {
       return;
     }
     setUnits(data ?? []);
-    window.localStorage.removeItem("cd-fridge-units");
+    window.localStorage.removeItem(`cd-fridge-units:${site.id}`);
   }
 
   async function refresh() {
@@ -44,7 +46,7 @@ export default function UnitsSettingsPage() {
   useEffect(() => {
     fetchUnits().then(applyResult);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [site.id]);
 
   function switchType(type: UnitType) {
     setUnitType(type);
@@ -80,6 +82,7 @@ export default function UnitsSettingsPage() {
     const nextSort = Math.max(0, ...(units ?? []).map((u) => u.sort_order)) + 1;
     run(() =>
       supabase.from("fridge_units").insert({
+        site_id: site.id,
         name: name.trim(),
         unit_type: unitType,
         target_min_c: numericMin,

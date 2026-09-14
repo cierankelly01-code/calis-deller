@@ -1,10 +1,21 @@
-// Hand-written to match supabase/migrations/0001_init.sql.
+// Hand-written to match supabase/migrations/ (0001 → 20260914 sites).
 // Once a live Supabase project exists, regenerate with:
 //   npx supabase gen types typescript --project-id <id> > src/types/database.ts
 // and re-apply this file's structure/comments if the generator overwrites them.
 
+export type SiteRow = {
+  id: string;
+  slug: string;
+  name: string;
+  short_name: string;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+};
+
 export type StaffRow = {
   id: string;
+  site_id: string;
   name: string;
   active: boolean;
   sort_order: number;
@@ -13,6 +24,7 @@ export type StaffRow = {
 
 export type FridgeUnitRow = {
   id: string;
+  site_id: string;
   name: string;
   unit_type: "fridge" | "freezer";
   target_min_c: number;
@@ -24,6 +36,7 @@ export type FridgeUnitRow = {
 
 export type FridgeTempLogRow = {
   id: string;
+  site_id: string;
   client_id: string;
   staff_id: string;
   unit_id: string;
@@ -39,6 +52,7 @@ export type FridgeTempLogRow = {
 
 export type SupplierRow = {
   id: string;
+  site_id: string;
   name: string;
   active: boolean;
   sort_order: number;
@@ -47,6 +61,7 @@ export type SupplierRow = {
 
 export type ProductRow = {
   id: string;
+  site_id: string;
   name: string;
   allergens: string[];
   may_contain: string[];
@@ -58,6 +73,7 @@ export type ProductRow = {
 
 export type CookingLogRow = {
   id: string;
+  site_id: string;
   client_id: string;
   staff_id: string;
   check_type: "cooking" | "reheating" | "hot_hold";
@@ -75,6 +91,7 @@ export type CookingLogRow = {
 
 export type DeliveryLogRow = {
   id: string;
+  site_id: string;
   client_id: string;
   staff_id: string;
   supplier_id: string | null;
@@ -95,6 +112,7 @@ export type DeliveryLogRow = {
 
 export type CleaningTaskRow = {
   id: string;
+  site_id: string;
   name: string;
   session: "open" | "close" | "both";
   active: boolean;
@@ -104,6 +122,7 @@ export type CleaningTaskRow = {
 
 export type CleaningLogRow = {
   id: string;
+  site_id: string;
   client_id: string;
   staff_id: string;
   task_id: string;
@@ -117,6 +136,7 @@ export type CleaningLogRow = {
 
 export type ProbeCalibrationLogRow = {
   id: string;
+  site_id: string;
   client_id: string;
   staff_id: string;
   method: "ice" | "boiling";
@@ -142,14 +162,15 @@ type TableDef<Row, RequiredInsertKeys extends keyof Row> = {
 export type Database = {
   public: {
     Tables: {
-      staff: TableDef<StaffRow, "name">;
-      fridge_units: TableDef<FridgeUnitRow, "name" | "unit_type" | "target_min_c" | "target_max_c">;
+      sites: TableDef<SiteRow, "slug" | "name" | "short_name">;
+      staff: TableDef<StaffRow, "name" | "site_id">;
+      fridge_units: TableDef<FridgeUnitRow, "name" | "unit_type" | "target_min_c" | "target_max_c" | "site_id">;
       fridge_temp_logs: TableDef<
         FridgeTempLogRow,
         "client_id" | "staff_id" | "unit_id" | "period" | "reading_c" | "in_range" | "recorded_at"
       >;
-      suppliers: TableDef<SupplierRow, "name">;
-      products: TableDef<ProductRow, "name">;
+      suppliers: TableDef<SupplierRow, "name" | "site_id">;
+      products: TableDef<ProductRow, "name" | "site_id">;
       cooking_logs: TableDef<
         CookingLogRow,
         "client_id" | "staff_id" | "product_name" | "quantity" | "temp_c" | "in_range" | "recorded_at"
@@ -158,7 +179,7 @@ export type Database = {
         DeliveryLogRow,
         "client_id" | "staff_id" | "supplier_name" | "accepted" | "recorded_at"
       >;
-      cleaning_tasks: TableDef<CleaningTaskRow, "name" | "session">;
+      cleaning_tasks: TableDef<CleaningTaskRow, "name" | "session" | "site_id">;
       cleaning_logs: TableDef<
         CleaningLogRow,
         "client_id" | "staff_id" | "task_id" | "session" | "recorded_at"

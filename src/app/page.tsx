@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
+import { useSite } from "@/lib/site/SiteContext";
 import {
   fetchActiveFridgeUnits,
   fetchTodayFridgeLogs,
@@ -32,10 +33,11 @@ function todayHeading(): string {
 
 export default function DashboardPage() {
   const user = useUser();
-  const { data: units } = useCachedQuery("cd-fridge-units", fetchActiveFridgeUnits);
-  const { data: todayLogs, loading } = useCachedQuery("cd-today-fridge-logs", fetchTodayFridgeLogs);
-  const { data: cleaningTasks } = useCachedQuery("cd-cleaning-tasks", fetchActiveCleaningTasks);
-  const { data: todayCleaning } = useCachedQuery("cd-today-cleaning-logs", fetchTodayCleaningLogs);
+  const { site } = useSite();
+  const { data: units } = useCachedQuery(`cd-fridge-units:${site.id}`, () => fetchActiveFridgeUnits(site.id));
+  const { data: todayLogs, loading } = useCachedQuery(`cd-today-fridge-logs:${site.id}`, () => fetchTodayFridgeLogs(site.id));
+  const { data: cleaningTasks } = useCachedQuery(`cd-cleaning-tasks:${site.id}`, () => fetchActiveCleaningTasks(site.id));
+  const { data: todayCleaning } = useCachedQuery(`cd-today-cleaning-logs:${site.id}`, () => fetchTodayCleaningLogs(site.id));
 
   const slot = currentSlot();
   const statuses = useMemo(
@@ -68,7 +70,7 @@ export default function DashboardPage() {
             <h1 className="font-display text-[28px] font-semibold text-brand-deep leading-tight">
               Kelly&apos;s Deli
             </h1>
-            <p className="text-sm text-ink-soft">{todayHeading()}</p>
+            <p className="text-sm text-ink-soft">{site.short_name} · {todayHeading()}</p>
           </div>
           <div className="flex items-center gap-2.5">
             <SyncStatusPill />

@@ -8,6 +8,7 @@ import { NumberPad } from "@/components/ui/NumberPad";
 import { SaveBar } from "@/components/ui/SaveBar";
 import { SavedOverlay } from "@/components/ui/SavedOverlay";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
+import { useSite } from "@/lib/site/SiteContext";
 import { fetchActiveStaff, fetchActiveFridgeUnits, fetchTodayFridgeLogs } from "@/lib/data/queries";
 import { useRememberedStaff } from "@/lib/staffMemory";
 import { appendToTodayCache } from "@/lib/data/optimistic";
@@ -26,9 +27,10 @@ function defaultPeriod(): Period {
 
 export default function FridgeLogPage() {
   const router = useRouter();
-  const { data: staff } = useCachedQuery("cd-staff", fetchActiveStaff);
-  const { data: units } = useCachedQuery("cd-fridge-units", fetchActiveFridgeUnits);
-  const { data: todayLogs } = useCachedQuery("cd-today-fridge-logs", fetchTodayFridgeLogs);
+  const { site } = useSite();
+  const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
+  const { data: units } = useCachedQuery(`cd-fridge-units:${site.id}`, () => fetchActiveFridgeUnits(site.id));
+  const { data: todayLogs } = useCachedQuery(`cd-today-fridge-logs:${site.id}`, () => fetchTodayFridgeLogs(site.id));
 
   const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
   const [unitChoice, setUnitChoice] = useState<string | null>(null);
@@ -102,7 +104,7 @@ export default function FridgeLogPage() {
         corrective_action: !rowInRange ? correctiveAction.trim() : null,
         recorded_at: recordedAt,
       });
-      appendToTodayCache("cd-today-fridge-logs", {
+      appendToTodayCache(`cd-today-fridge-logs:${site.id}`, {
         id: clientId,
         unit_id: selectedUnit.id,
         period,

@@ -1,5 +1,5 @@
 export type AppRole = 'staff' | 'manager';
-export const configTables = ['staff', 'fridge_units', 'suppliers', 'products', 'cleaning_tasks'];
+export const configTables = ['sites', 'staff', 'fridge_units', 'suppliers', 'products', 'cleaning_tasks'];
 export const logTables = ['fridge_temp_logs', 'cooking_logs', 'delivery_logs', 'cleaning_logs', 'probe_calibration_logs'];
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -22,14 +22,15 @@ const optional = (rule: Rule): Rule => v => v === null || rule(v);
 const timestamp: Rule = v => typeof v === 'string' && /^\d{4}-\d\d-\d\dT/.test(v) && Number.isFinite(Date.parse(v));
 const allergens = ['celery','gluten','crustaceans','eggs','fish','lupin','milk','molluscs','mustard','peanuts','sesame','soya','sulphites','tree_nuts'];
 const allergenList: Rule = v => Array.isArray(v) && v.length <= 14 && v.every(oneOf(...allergens)) && new Set(v).size === v.length;
-const base = {name:text(200,true),active:boolean,sort_order:integer(0,100000)};
+const base = {name:text(200,true),active:boolean,sort_order:integer(0,100000),site_id:uuid};
 const log = {client_id:uuid,staff_id:uuid,recorded_at:timestamp,corrects_entry_id:optional(uuid),created_by_device:optional(text(200))};
 const temp = number(-100,300);
 const note = optional(text(2000));
 const fields: Record<string, Record<string, Rule>> = {
+  sites:{name:text(200,true),short_name:text(60,true),slug:v=>typeof v==='string'&&/^[a-z0-9-]{1,60}$/.test(v),active:boolean,sort_order:integer(0,100000)},
   staff:base, suppliers:base,
   fridge_units:{...base,unit_type:oneOf('fridge','freezer'),target_min_c:temp,target_max_c:temp},
-  products:{name:base.name,active:boolean,allergens:allergenList,may_contain:allergenList,notes:note,updated_at:timestamp},
+  products:{name:base.name,site_id:uuid,active:boolean,allergens:allergenList,may_contain:allergenList,notes:note,updated_at:timestamp},
   cleaning_tasks:{...base,session:oneOf('open','close','both')},
   fridge_temp_logs:{...log,unit_id:uuid,period:oneOf('am','mid','pm','other'),reading_c:temp,in_range:boolean,corrective_action:note},
   cooking_logs:{...log,check_type:oneOf('cooking','reheating','hot_hold'),product_id:optional(uuid),product_name:text(200,true),quantity:integer(1,10000),temp_c:temp,in_range:boolean,corrective_action:note},
@@ -37,9 +38,11 @@ const fields: Record<string, Record<string, Rule>> = {
   cleaning_logs:{...log,task_id:uuid,session:oneOf('open','close'),note},
   probe_calibration_logs:{...log,method:oneOf('ice','boiling'),reading_c:temp,pass:boolean,corrective_action:note},
 };
+// Log rows carry no site_id: the database derives it from the staff member.
 const required: Record<string,string[]> = {
-  staff:['name'],suppliers:['name'],products:['name'],
-  fridge_units:['name','unit_type','target_min_c','target_max_c'],cleaning_tasks:['name','session'],
+  sites:['name','short_name','slug'],
+  staff:['name','site_id'],suppliers:['name','site_id'],products:['name','site_id'],
+  fridge_units:['name','unit_type','target_min_c','target_max_c','site_id'],cleaning_tasks:['name','session','site_id'],
   fridge_temp_logs:['unit_id','period','reading_c','in_range'],
   cooking_logs:['product_name','temp_c','in_range'],delivery_logs:['supplier_name','accepted'],
   cleaning_logs:['task_id','session'],probe_calibration_logs:['method','reading_c','pass'],

@@ -8,6 +8,7 @@ import { NumberPad } from "@/components/ui/NumberPad";
 import { SaveBar } from "@/components/ui/SaveBar";
 import { SavedOverlay } from "@/components/ui/SavedOverlay";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
+import { useSite } from "@/lib/site/SiteContext";
 import { fetchActiveStaff } from "@/lib/data/queries";
 import { useRememberedStaff } from "@/lib/staffMemory";
 import { queueEntry } from "@/lib/offline/outbox";
@@ -28,7 +29,8 @@ const TOLERANCE_C = 1;
 
 export default function ProbeCalibrationPage() {
   const router = useRouter();
-  const { data: staff } = useCachedQuery("cd-staff", fetchActiveStaff);
+  const { site } = useSite();
+  const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
 
   const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
   const [method, setMethod] = useState<Method>("ice");
