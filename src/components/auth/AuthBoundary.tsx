@@ -56,6 +56,10 @@ export function AuthBoundary({children}:{children:React.ReactNode}) {
       const result=await response.json();
       if(!response.ok)throw new Error(result.message);
       clearDisplayCache();
+      // Apply the signed-in user immediately; the periodic check() would
+      // otherwise leave the form on "Signing in…" for up to a minute.
+      const signedIn:BrowserUser={id:result.id,email:result.email,role:result.role};
+      setBrowserUser(signedIn);setUser(signedIn);setBusy(false);
       const next=new URLSearchParams(location.search).get('next');
       router.replace(next && /^\/settings(?:\/(?:staff|units|suppliers|cleaning))?$/.test(next)?next:location.pathname==='/login'?'/':location.pathname);
     } catch(err) {setError(err instanceof Error?err.message:'Unable to sign in');setBusy(false);}
