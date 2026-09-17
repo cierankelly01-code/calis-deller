@@ -52,7 +52,7 @@ function readStoredUnit(): string | null {
 export default function CounterPutOutPage() {
   const { site } = useSite();
   const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
-  const { data: products } = useCachedQuery(`cd-products:${site.id}`, () => fetchActiveProducts(site.id));
+  const { data: products } = useCachedQuery("cd-products", fetchActiveProducts);
   const { data: units } = useCachedQuery(`cd-fridge-units:${site.id}`, () => fetchActiveFridgeUnits(site.id));
   const { data: stockLogs } = useCachedQuery(`cd-counter-stock:${site.id}`, () => fetchCounterStock(site.id));
   const { data: deliveries } = useCachedQuery(`cd-recent-deliveries:${site.id}`, () => fetchRecentDeliveries(site.id));

@@ -61,7 +61,7 @@ export type SupplierRow = {
 
 export type ProductRow = {
   id: string;
-  site_id: string;
+  site_id: string | null; // always null: the product list is shared by both shops
   name: string;
   allergens: string[];
   may_contain: string[];
@@ -194,7 +194,7 @@ export type Database = {
         "client_id" | "staff_id" | "unit_id" | "period" | "reading_c" | "in_range" | "recorded_at"
       >;
       suppliers: TableDef<SupplierRow, "name" | "site_id">;
-      products: TableDef<ProductRow, "name" | "site_id">;
+      products: TableDef<ProductRow, "name">;
       cooking_logs: TableDef<
         CookingLogRow,
         "client_id" | "staff_id" | "product_name" | "quantity" | "temp_c" | "in_range" | "recorded_at"

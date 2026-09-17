@@ -31,7 +31,8 @@ const fields: Record<string, Record<string, Rule>> = {
   sites:{name:text(200,true),short_name:text(60,true),slug:v=>typeof v==='string'&&/^[a-z0-9-]{1,60}$/.test(v),active:boolean,sort_order:integer(0,100000)},
   staff:base, suppliers:base,
   fridge_units:{...base,unit_type:oneOf('fridge','freezer'),target_min_c:temp,target_max_c:temp},
-  products:{name:base.name,site_id:uuid,active:boolean,allergens:allergenList,may_contain:allergenList,notes:note,open_life_days:integer(1,90),updated_at:timestamp},
+  // Products are shared by both shops: no site_id is accepted, so a row can never be pinned to one store.
+  products:{name:base.name,active:boolean,allergens:allergenList,may_contain:allergenList,notes:note,open_life_days:integer(1,90),updated_at:timestamp},
   cleaning_tasks:{...base,session:oneOf('open','close','both')},
   fridge_temp_logs:{...log,unit_id:uuid,period:oneOf('am','mid','pm','other'),reading_c:temp,in_range:boolean,corrective_action:note},
   cooking_logs:{...log,check_type:oneOf('cooking','reheating','hot_hold'),product_id:optional(uuid),product_name:text(200,true),quantity:integer(1,10000),temp_c:temp,in_range:boolean,corrective_action:note},
@@ -43,7 +44,7 @@ const fields: Record<string, Record<string, Rule>> = {
 // Log rows carry no site_id: the database derives it from the staff member.
 const required: Record<string,string[]> = {
   sites:['name','short_name','slug'],
-  staff:['name','site_id'],suppliers:['name','site_id'],products:['name','site_id'],
+  staff:['name','site_id'],suppliers:['name','site_id'],products:['name'],
   fridge_units:['name','unit_type','target_min_c','target_max_c','site_id'],cleaning_tasks:['name','session','site_id'],
   fridge_temp_logs:['unit_id','period','reading_c','in_range'],
   cooking_logs:['product_name','temp_c','in_range'],delivery_logs:['supplier_name','accepted'],

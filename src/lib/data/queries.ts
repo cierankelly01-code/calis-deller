@@ -80,11 +80,13 @@ export type ActiveProduct = {
   open_life_days: number;
 };
 
-export async function fetchActiveProducts(siteId: string): Promise<ActiveProduct[]> {
+// Products are the one config list shared by both shops (same range sold in
+// each), so this is deliberately not scoped to a site — see migration
+// 20260917100000_shared_products.sql.
+export async function fetchActiveProducts(): Promise<ActiveProduct[]> {
   const { data, error } = await supabase
     .from("products")
     .select("id, name, allergens, may_contain, notes, open_life_days")
-    .eq("site_id", siteId)
     .eq("active", true)
     .order("name");
   if (error) throw error;

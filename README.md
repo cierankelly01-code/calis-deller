@@ -24,6 +24,7 @@ shared kitchen iPad. Everything an EHO asks for, recorded in a few taps:
   row-level security), and each row stores both when it was recorded and when it synced —
   no back-filling, which is exactly what EHOs distrust about paper diaries.
 - **Config is soft-deleted.** Removing a fridge/staff member/task hides it but keeps history intact.
+- **One product list.** Both shops sell the same range, so products and their allergens are shared — an edit in either shop shows in both. Everything else (staff, fridges, suppliers, cleaning tasks, all logs) is per shop.
 
 ## Go-live checklist (~15 minutes)
 

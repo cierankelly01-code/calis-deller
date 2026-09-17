@@ -65,6 +65,8 @@ test('counter entries are validated on the device like the database will',async(
   assert.ok(validateWrite('counter_stock_logs','POST',{...base,event:'put_out',open_life_days:3,delivery_log_id:randomUUID()}));
   assert.throws(()=>validateWrite('counter_stock_logs','POST',{...base,event:'taken_off',batch_client_id:randomUUID(),reason:'sold_out',delivery_log_id:randomUUID()}),/Invalid/,'only a put_out links a delivery');
   assert.ok(validateWrite('products','PATCH',{open_life_days:2}));
+  assert.ok(validateWrite('products','POST',{name:'Shared ham'}),'products need no shop');
+  assert.throws(()=>validateWrite('products','POST',{name:'Pinned ham',site_id:randomUUID()}),/Invalid/,'a product can never be pinned to one shop');
   assert.throws(()=>validateWrite('products','PATCH',{open_life_days:0}));
 });
 
@@ -79,11 +81,17 @@ test('Postgres derives the bin-by date, closes batches only against real ones an
       create function auth.jwt() returns jsonb language sql stable as $$select jsonb_build_object('session_id',current_setting('request.jwt.claim.session_id',true))$$;
       grant usage on schema auth to anon,authenticated;
       grant execute on function auth.uid(),auth.jwt() to anon,authenticated;`);
-    for(const filename of ['0001_init.sql','0002_full_diary.sql','0003_grants_and_units.sql','20260908170550_food_log_security.sql','20260914090000_sites.sql','20260916120000_counter_stock.sql']) {
-      const sql=(await readFile(new URL('../supabase/migrations/'+filename,import.meta.url),'utf8')).replace('create extension if not exists pgcrypto;','');
-      await db.exec(sql);
-    }
+    const migrate=async(filename)=>db.exec((await readFile(new URL('../supabase/migrations/'+filename,import.meta.url),'utf8')).replace('create extension if not exists pgcrypto;',''));
+    for(const filename of ['0001_init.sql','0002_full_diary.sql','0003_grants_and_units.sql','20260908170550_food_log_security.sql','20260914090000_sites.sql','20260916120000_counter_stock.sql']) await migrate(filename);
     const [stratford,bentley]=(await db.query("select id from sites order by sort_order")).rows.map(r=>r.id);
+    // Same product entered in both shops before the list was shared: the older
+    // row survives, the copy is deactivated, and everything becomes shared.
+    await db.exec('alter table products disable trigger food_log_rate_limit');
+    await db.query("insert into products(name,site_id,created_at) values('Ham',$1,'2026-09-01'),('ham ',$2,'2026-09-17'),('Coleslaw',$2,'2026-09-17')",[stratford,bentley]);
+    await db.exec('alter table products enable trigger food_log_rate_limit');
+    await migrate('20260917100000_shared_products.sql');
+    const products=(await db.query("select name,active,site_id from products where name in ('Ham','ham ','Coleslaw') order by name")).rows;
+    assert.deepEqual(products,[{name:'Coleslaw',active:true,site_id:null},{name:'Ham',active:true,site_id:null},{name:'ham ',active:false,site_id:null}]);
     assert.equal((await db.query("select count(*)::int as n from cleaning_tasks where name like 'Counter stock%' and session='open'")).rows[0].n,2,'daily counter check seeded onto each shop opening list');
     assert.equal((await db.query("select count(*)::int as n from cleaning_tasks where name like 'Counter stock%' and session='close'")).rows[0].n,2,'and onto each closing list');
     // Sign in first: the write-limit trigger needs a food-log account even
@@ -96,6 +104,7 @@ test('Postgres derives the bin-by date, closes batches only against real ones an
     await db.query('insert into staff(id,name,site_id) values($1,$2,$3),($4,$5,$6)',[staffId,'Test Staff',stratford,otherStaff,'Other Shop',bentley]);
     await db.query("insert into fridge_units(id,name,unit_type,target_min_c,target_max_c,site_id) values($1,'Serve-over 1','fridge',1,5,$2),($3,'Other shop counter','fridge',1,5,$4)",[unitId,stratford,otherUnit,bentley]);
     await db.exec('set role authenticated');
+    assert.equal((await db.query('select count(*)::int as n from products where active')).rows[0].n,(await db.query('select count(*)::int as n from products where active and site_id is null')).rows[0].n,'every active product is shared');
 
     const batch=randomUUID(),ownDelivery=randomUUID(),otherDelivery=randomUUID();
     await db.query("insert into delivery_logs(client_id,staff_id,supplier_name,accepted,recorded_at) values($1,$2,'Meat Supplier',true,now()),($3,$4,'Other Shop Supplier',true,now())",[ownDelivery,staffId,otherDelivery,otherStaff]);

@@ -28,7 +28,7 @@ const CHECKS: Record<CheckType, { label: string; target: number; wording: string
 export default function CookingLogPage() {
   const { site } = useSite();
   const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
-  const { data: products } = useCachedQuery(`cd-products:${site.id}`, () => fetchActiveProducts(site.id));
+  const { data: products } = useCachedQuery("cd-products", fetchActiveProducts);
 
   const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
   const [checkType, setCheckType] = useState<CheckType>("cooking");
