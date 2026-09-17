@@ -9,8 +9,10 @@ import {
   fetchTodayFridgeLogs,
   fetchActiveCleaningTasks,
   fetchTodayCleaningLogs,
+  fetchCounterStock,
 } from "@/lib/data/queries";
 import { currentSlot, computeUnitSlotStatus } from "@/lib/dashboard/dueStatus";
+import { openBatches, summarise } from "@/lib/counter/board";
 import { SyncStatusPill } from "@/components/ui/SyncStatusPill";
 import { useUser } from "@/components/auth/AuthBoundary";
 
@@ -20,6 +22,7 @@ const LOG_TILES = [
   { href: "/log/delivery", emoji: "🚚", title: "Delivery in", sub: "Van temp & condition" },
   { href: "/log/cleaning", emoji: "🧽", title: "Cleaning", sub: "Opening & closing" },
   { href: "/log/probe", emoji: "🌡️", title: "Probe check", sub: "Weekly calibration" },
+  { href: "/counter", emoji: "🥩", title: "Counter stock", sub: "Put out · take off · dates" },
   { href: "/diary", emoji: "📖", title: "Diary", sub: "Any day's records" },
 ] as const;
 
@@ -38,6 +41,7 @@ export default function DashboardPage() {
   const { data: todayLogs, loading } = useCachedQuery(`cd-today-fridge-logs:${site.id}`, () => fetchTodayFridgeLogs(site.id));
   const { data: cleaningTasks } = useCachedQuery(`cd-cleaning-tasks:${site.id}`, () => fetchActiveCleaningTasks(site.id));
   const { data: todayCleaning } = useCachedQuery(`cd-today-cleaning-logs:${site.id}`, () => fetchTodayCleaningLogs(site.id));
+  const { data: counterLogs } = useCachedQuery(`cd-counter-stock:${site.id}`, () => fetchCounterStock(site.id));
 
   const slot = currentSlot();
   const statuses = useMemo(
@@ -56,11 +60,15 @@ export default function DashboardPage() {
     return { total, done };
   }, [cleaningTasks, todayCleaning, session]);
 
+  // Open counter batches past their date are a live problem, not a scheduled
+  // check — they block "ready for service" until they're taken off.
+  const counter = useMemo(() => summarise(openBatches(counterLogs ?? [])), [counterLogs]);
+
   const fridgesDue = statuses.filter((s) => !s.done).length;
   const cleaningDue = cleaning.total > 0 && cleaning.done < cleaning.total;
   const anyOutOfRange = statuses.some((s) => s.inRange === false);
   const allCaughtUp =
-    statuses.length > 0 && fridgesDue === 0 && !cleaningDue && !anyOutOfRange;
+    statuses.length > 0 && fridgesDue === 0 && !cleaningDue && !anyOutOfRange && counter.overdue === 0;
 
   return (
     <div className="flex flex-col flex-1">
@@ -82,7 +90,7 @@ export default function DashboardPage() {
       <div className="flex-1 px-4 py-5 max-w-2xl w-full mx-auto space-y-7">
         <section className="rounded-2xl bg-ink text-paper px-5 py-4 shadow-sm">
           <div className="flex items-center justify-between gap-4">
-            <div><p className="text-xs uppercase tracking-[0.18em] text-paper/60 font-bold">Today&apos;s record</p><p className="mt-1 text-lg font-bold">{allCaughtUp ? "Ready for service" : `${fridgesDue + (cleaningDue ? 1 : 0)} checks left`}</p></div>
+            <div><p className="text-xs uppercase tracking-[0.18em] text-paper/60 font-bold">Today&apos;s record</p><p className="mt-1 text-lg font-bold">{allCaughtUp ? "Ready for service" : `${fridgesDue + (cleaningDue ? 1 : 0) + (counter.overdue > 0 ? 1 : 0)} checks left`}</p></div>
             <span className="text-3xl" aria-hidden>{allCaughtUp ? "✓" : "◷"}</span>
           </div>
           {!allCaughtUp && <div className="mt-3 h-1.5 rounded-full bg-paper/20 overflow-hidden"><div className="h-full rounded-full bg-gold transition-all" style={{width:`${statuses.length ? Math.max(8,((statuses.length-fridgesDue)/statuses.length)*100) : 8}%`}} /></div>}
@@ -165,6 +173,32 @@ export default function DashboardPage() {
                 )}
               </Link>
             ))}
+
+            {(counter.open > 0 || counter.overdue > 0) && (
+              <Link
+                href="/counter"
+                className={`flex items-center justify-between rounded-2xl border px-4 py-3.5 active:scale-[0.99] transition-transform ${
+                  counter.overdue > 0
+                    ? "bg-danger-soft border-danger/30"
+                    : counter.dueToday > 0
+                      ? "bg-gold-soft border-gold/50"
+                      : "bg-surface border-line"
+                }`}
+              >
+                <p className="font-semibold text-ink">🥩 Counter stock</p>
+                <p
+                  className={`text-sm font-semibold ${
+                    counter.overdue > 0 ? "text-danger" : counter.dueToday > 0 ? "text-gold-deep" : "text-brand"
+                  }`}
+                >
+                  {counter.overdue > 0
+                    ? `⚠ ${counter.overdue} past date — bin now`
+                    : counter.dueToday > 0
+                      ? `${counter.dueToday} to bin tonight`
+                      : `${counter.open} open · all in date ✓`}
+                </p>
+              </Link>
+            )}
 
             {cleaning.total > 0 && (
               <Link

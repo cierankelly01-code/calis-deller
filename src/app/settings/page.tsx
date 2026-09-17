@@ -8,7 +8,7 @@ const SECTIONS = [
   { href: "/settings/staff", emoji: "👥", title: "Staff", sub: "Who appears on the name picker" },
   { href: "/settings/cleaning", emoji: "🧽", title: "Cleaning tasks", sub: "Opening & closing checklists" },
   { href: "/settings/suppliers", emoji: "🚚", title: "Suppliers", sub: "Quick-pick list on delivery checks" },
-  { href: "/allergens", emoji: "⚠️", title: "Products & allergens", sub: "Managed in the Allergen Guide" },
+  { href: "/allergens", emoji: "⚠️", title: "Products, allergens & open life", sub: "Managed in the Allergen Guide" },
 ];
 
 export default function SettingsPage() {

@@ -18,19 +18,21 @@ test('only assigned staff and managers can read; settings writes need manager', 
   assert.equal(canAccess('manager', 'auth.users', 'GET'), false);
   assert.equal(canAccess('manager', 'staff', 'DELETE'), false);
 });
+const siteId='44444444-4444-4444-8444-444444444444';
 test('writes reject unknown fields, invalid values and mass updates', () => {
   assert.throws(() => validateWrite('staff', 'POST', {name:'A', food_log_role:'manager'}));
   assert.throws(() => validateWrite('staff', 'POST', {name:' '.repeat(10)}));
   assert.throws(() => validateWrite('staff', 'POST', {name:'x'.repeat(201)}));
   assert.throws(() => validateWrite('staff', 'POST', [{name:'A'}]));
   assert.throws(() => validateWrite('staff', 'PATCH', {}));
-  assert.deepEqual(validateWrite('staff', 'POST', {name:'  Pat  '}), {name:'Pat'});
+  assert.throws(() => validateWrite('staff', 'POST', {name:'Pat'}), /Incomplete/, 'config rows must name their shop');
+  assert.deepEqual(validateWrite('staff', 'POST', {name:'  Pat  ',site_id:siteId}), {name:'Pat',site_id:siteId});
   assert.throws(() => validateWrite('fridge_units', 'POST', {name:'A',unit_type:'fridge',target_min_c:8,target_max_c:1}));
   assert.throws(() => validateWrite('products','POST',{name:'A', allergens:['fake']}));
 });
 test('text remains plain data and legitimate punctuation is preserved', () => {
-  assert.deepEqual(validateWrite('staff','POST',{name:'<script>alert(1)</script>'}),{name:'<script>alert(1)</script>'});
-  assert.deepEqual(validateWrite('staff','POST',{name:"O’Connor & Sons"}),{name:"O’Connor & Sons"});
+  assert.deepEqual(validateWrite('staff','PATCH',{name:'<script>alert(1)</script>'}),{name:'<script>alert(1)</script>'});
+  assert.deepEqual(validateWrite('staff','PATCH',{name:"O’Connor & Sons"}),{name:"O’Connor & Sons"});
 });
 test('CSRF requires exact origin and rejects hostile fetch metadata', () => {
   assert.equal(sameOrigin(new Headers({origin:'https://food.example'}), 'https://food.example'),true);

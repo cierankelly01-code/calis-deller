@@ -1,4 +1,4 @@
-// Hand-written to match supabase/migrations/ (0001 → 20260914 sites).
+// Hand-written to match supabase/migrations/ (0001 → 20260916 counter stock).
 // Once a live Supabase project exists, regenerate with:
 //   npx supabase gen types typescript --project-id <id> > src/types/database.ts
 // and re-apply this file's structure/comments if the generator overwrites them.
@@ -66,6 +66,7 @@ export type ProductRow = {
   allergens: string[];
   may_contain: string[];
   notes: string | null;
+  open_life_days: number; // sell within N days of opening, day opened = day 1
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -149,6 +150,29 @@ export type ProbeCalibrationLogRow = {
   created_by_device: string | null;
 };
 
+export type CounterStockLogRow = {
+  id: string;
+  site_id: string;
+  client_id: string;
+  staff_id: string;
+  event: "put_out" | "taken_off";
+  batch_client_id: string | null; // taken_off → the put_out row's client_id
+  product_id: string | null;
+  product_name: string;
+  unit_id: string; // the serve-over it was displayed in
+  open_life_days: number | null;
+  pack_use_by: string | null; // YYYY-MM-DD
+  discard_by: string | null; // YYYY-MM-DD, server-derived
+  batch_code: string | null;
+  delivery_log_id: string | null; // traceability: the delivery it came in on
+  reason: "sold_out" | "end_of_life" | "quality" | "other" | null;
+  note: string | null;
+  recorded_at: string;
+  synced_at: string;
+  corrects_entry_id: string | null;
+  created_by_device: string | null;
+};
+
 // supabase-js v2 requires each table to carry a Relationships array and the
 // schema to declare Views/Functions — without them the schema fails its
 // GenericSchema constraint and every Insert/Update degrades to `never`.
@@ -187,6 +211,10 @@ export type Database = {
       probe_calibration_logs: TableDef<
         ProbeCalibrationLogRow,
         "client_id" | "staff_id" | "method" | "reading_c" | "pass" | "recorded_at"
+      >;
+      counter_stock_logs: TableDef<
+        CounterStockLogRow,
+        "client_id" | "staff_id" | "event" | "product_name" | "unit_id" | "recorded_at"
       >;
     };
     Views: Record<string, never>;

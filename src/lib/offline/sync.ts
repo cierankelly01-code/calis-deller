@@ -49,7 +49,9 @@ export async function syncOutbox(): Promise<{ synced: number; remaining: number 
   syncing = true;
   let synced = 0;
   try {
-    const entries = await getUnsyncedEntries();
+    // Oldest first: a "taken off" entry references the "put out" entry that
+    // came before it, and the database checks that the batch exists.
+    const entries = (await getUnsyncedEntries()).sort((a, b) => a.queuedAt.localeCompare(b.queuedAt));
     for (const entry of entries) {
       if (entry.ownerId !== user.id || getBrowserUser()?.id !== user.id) continue;
       const ok = await pushEntry(entry);

@@ -1,6 +1,6 @@
 export type AppRole = 'staff' | 'manager';
 export const configTables = ['sites', 'staff', 'fridge_units', 'suppliers', 'products', 'cleaning_tasks'];
-export const logTables = ['fridge_temp_logs', 'cooking_logs', 'delivery_logs', 'cleaning_logs', 'probe_calibration_logs'];
+export const logTables = ['fridge_temp_logs', 'cooking_logs', 'delivery_logs', 'cleaning_logs', 'probe_calibration_logs', 'counter_stock_logs'];
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function canAccess(role: unknown, table: string, method: string): boolean {
@@ -20,6 +20,7 @@ const boolean: Rule = v => typeof v === 'boolean';
 const uuid: Rule = v => typeof v === 'string' && UUID.test(v);
 const optional = (rule: Rule): Rule => v => v === null || rule(v);
 const timestamp: Rule = v => typeof v === 'string' && /^\d{4}-\d\d-\d\dT/.test(v) && Number.isFinite(Date.parse(v));
+const date: Rule = v => typeof v === 'string' && /^\d{4}-\d\d-\d\d$/.test(v) && Number.isFinite(Date.parse(v));
 const allergens = ['celery','gluten','crustaceans','eggs','fish','lupin','milk','molluscs','mustard','peanuts','sesame','soya','sulphites','tree_nuts'];
 const allergenList: Rule = v => Array.isArray(v) && v.length <= 14 && v.every(oneOf(...allergens)) && new Set(v).size === v.length;
 const base = {name:text(200,true),active:boolean,sort_order:integer(0,100000),site_id:uuid};
@@ -30,13 +31,14 @@ const fields: Record<string, Record<string, Rule>> = {
   sites:{name:text(200,true),short_name:text(60,true),slug:v=>typeof v==='string'&&/^[a-z0-9-]{1,60}$/.test(v),active:boolean,sort_order:integer(0,100000)},
   staff:base, suppliers:base,
   fridge_units:{...base,unit_type:oneOf('fridge','freezer'),target_min_c:temp,target_max_c:temp},
-  products:{name:base.name,site_id:uuid,active:boolean,allergens:allergenList,may_contain:allergenList,notes:note,updated_at:timestamp},
+  products:{name:base.name,site_id:uuid,active:boolean,allergens:allergenList,may_contain:allergenList,notes:note,open_life_days:integer(1,90),updated_at:timestamp},
   cleaning_tasks:{...base,session:oneOf('open','close','both')},
   fridge_temp_logs:{...log,unit_id:uuid,period:oneOf('am','mid','pm','other'),reading_c:temp,in_range:boolean,corrective_action:note},
   cooking_logs:{...log,check_type:oneOf('cooking','reheating','hot_hold'),product_id:optional(uuid),product_name:text(200,true),quantity:integer(1,10000),temp_c:temp,in_range:boolean,corrective_action:note},
   delivery_logs:{...log,supplier_id:optional(uuid),supplier_name:text(200,true),vehicle_temp_c:optional(temp),chilled_temp_c:optional(temp),frozen_temp_c:optional(temp),packaging_ok:boolean,in_date_ok:boolean,accepted:boolean,rejection_reason:note,notes:note},
   cleaning_logs:{...log,task_id:uuid,session:oneOf('open','close'),note},
   probe_calibration_logs:{...log,method:oneOf('ice','boiling'),reading_c:temp,pass:boolean,corrective_action:note},
+  counter_stock_logs:{...log,event:oneOf('put_out','taken_off'),batch_client_id:optional(uuid),product_id:optional(uuid),product_name:text(200,true),unit_id:uuid,open_life_days:optional(integer(1,90)),pack_use_by:optional(date),batch_code:optional(text(200)),delivery_log_id:optional(uuid),reason:optional(oneOf('sold_out','end_of_life','quality','other')),note},
 };
 // Log rows carry no site_id: the database derives it from the staff member.
 const required: Record<string,string[]> = {
@@ -46,6 +48,7 @@ const required: Record<string,string[]> = {
   fridge_temp_logs:['unit_id','period','reading_c','in_range'],
   cooking_logs:['product_name','temp_c','in_range'],delivery_logs:['supplier_name','accepted'],
   cleaning_logs:['task_id','session'],probe_calibration_logs:['method','reading_c','pass'],
+  counter_stock_logs:['event','product_name','unit_id'],
 };
 
 export function validateWrite(table: string, method: string, input: unknown): Record<string,unknown> {
@@ -63,6 +66,13 @@ export function validateWrite(table: string, method: string, input: unknown): Re
   }
   if (table === 'fridge_units' && typeof result.target_min_c === 'number' && typeof result.target_max_c === 'number' && result.target_min_c >= result.target_max_c) throw new Error('Invalid temperature band');
   if (table === 'cooking_logs' && result.quantity === 0) throw new Error('Invalid quantity');
+  if (table === 'counter_stock_logs' && method === 'POST') {
+    // Mirrors the database's event-shape constraint so a malformed entry is
+    // refused on the device instead of sitting stuck in the outbox.
+    const putOut = result.event === 'put_out';
+    if (putOut ? (result.batch_client_id != null || result.reason != null || typeof result.open_life_days !== 'number') : (typeof result.batch_client_id !== 'string' || typeof result.reason !== 'string' || result.open_life_days != null || result.pack_use_by != null || result.delivery_log_id != null)) throw new Error('Invalid entry');
+    if (result.reason === 'other' && !(typeof result.note === 'string' && result.note.length > 0)) throw new Error('Say what happened');
+  }
   if (result.recorded_at && Date.parse(String(result.recorded_at)) > Date.now() + 300000) throw new Error('Check device time');
   return result;
 }

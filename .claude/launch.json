@@ -4,14 +4,27 @@
     {
       "name": "dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
     },
     {
       "name": "standalone",
       "runtimeExecutable": "node",
-      "runtimeArgs": [".next/standalone/server.js"],
+      "runtimeArgs": [
+        ".next/standalone/server.js"
+      ],
       "port": 3000
+    },
+    {
+      "name": "mock",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/dev-mock.mjs"
+      ],
+      "port": 3100
     }
   ]
 }

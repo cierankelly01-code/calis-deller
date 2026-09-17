@@ -1,8 +1,11 @@
 import { supabase } from "@/lib/supabase/client";
+import { fetchDeliveryLabels } from "@/lib/data/queries";
 import { escapeCell } from './csv-cell';
+import { REASONS } from "@/lib/counter/board";
 import type {
   CleaningLogRow,
   CookingLogRow,
+  CounterStockLogRow,
   DeliveryLogRow,
   FridgeTempLogRow,
   ProbeCalibrationLogRow,
@@ -60,18 +63,19 @@ export async function buildExportCsv(siteId: string, fromDateStr: string, toDate
   const to = end.toISOString();
 
   // Name lookups include inactive rows so historic records still resolve.
-  const [fridge, cooking, deliveries, cleaning, probe, staff, units, tasks] = await Promise.all([
+  const [fridge, cooking, deliveries, cleaning, probe, counter, staff, units, tasks] = await Promise.all([
     supabase.from("fridge_temp_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("cooking_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("delivery_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("cleaning_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("probe_calibration_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("counter_stock_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("staff").select("id, name").eq("site_id", siteId),
     supabase.from("fridge_units").select("id, name").eq("site_id", siteId),
     supabase.from("cleaning_tasks").select("id, name").eq("site_id", siteId),
   ]);
 
-  for (const result of [fridge, cooking, deliveries, cleaning, probe, staff, units, tasks]) {
+  for (const result of [fridge, cooking, deliveries, cleaning, probe, counter, staff, units, tasks]) {
     if (result.error) throw result.error;
   }
 
@@ -80,6 +84,10 @@ export async function buildExportCsv(siteId: string, fromDateStr: string, toDate
   const staffNames = toMap(staff.data as { id: string; name: string }[] | null);
   const unitNames = toMap(units.data as { id: string; name: string }[] | null);
   const taskNames = toMap(tasks.data as { id: string; name: string }[] | null);
+
+  const deliveryLabels = await fetchDeliveryLabels(
+    ((counter.data ?? []) as CounterStockLogRow[]).map((row) => row.delivery_log_id).filter((id): id is string => !!id)
+  );
 
   const rows: CsvRow[] = [];
 
@@ -163,6 +171,29 @@ export async function buildExportCsv(siteId: string, fromDateStr: string, toDate
       status: log.pass ? "Pass" : "FAIL",
       staffId: log.staff_id,
       notes: log.corrective_action ?? "",
+    });
+  }
+
+  for (const log of (counter.data ?? []) as CounterStockLogRow[]) {
+    const unit = unitNames.get(log.unit_id) ?? "Unknown unit";
+    rows.push({
+      recordedAt: log.recorded_at,
+      syncedAt: log.synced_at,
+      module: "Counter stock",
+      item: `${log.product_name} (${unit})`,
+      reading:
+        log.event === "put_out"
+          ? `Put out · bin by ${log.discard_by ?? "?"} · ${log.open_life_days}-day open life${log.pack_use_by ? ` · pack use-by ${log.pack_use_by}` : ""}`
+          : `Taken off · ${log.reason ? REASONS[log.reason] : ""}`,
+      status: log.event === "put_out" ? "On counter" : log.reason === "sold_out" ? "Sold out" : "Binned",
+      staffId: log.staff_id,
+      notes: [
+        log.batch_code ? `Batch ${log.batch_code}` : null,
+        log.delivery_log_id ? `From delivery: ${deliveryLabels.get(log.delivery_log_id) ?? log.delivery_log_id}` : null,
+        log.note,
+      ]
+        .filter(Boolean)
+        .join(" · "),
     });
   }
 

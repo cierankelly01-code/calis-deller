@@ -4,10 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { buildExportCsv, downloadCsv } from "@/lib/export/csv";
 import { supabase } from "@/lib/supabase/client";
+import { fetchDeliveryLabels } from "@/lib/data/queries";
 import { useSite } from "@/lib/site/SiteContext";
+import { REASONS, formatDay } from "@/lib/counter/board";
 import type {
   CleaningLogRow,
   CookingLogRow,
+  CounterStockLogRow,
   DeliveryLogRow,
   FridgeTempLogRow,
   ProbeCalibrationLogRow,
@@ -23,6 +26,8 @@ type DayData = {
   deliveries: DeliveryLogRow[];
   cleaning: CleaningLogRow[];
   probe: ProbeCalibrationLogRow[];
+  counter: CounterStockLogRow[];
+  deliveryLabels: Map<string, string>; // delivery id → "Supplier · date", for linked counter batches
   staffNames: Map<string, string>;
   unitNames: Map<string, string>;
   taskNames: Map<string, string>;
@@ -46,23 +51,30 @@ async function fetchDay(siteId: string, dateStr: string): Promise<DayData> {
   const from = start.toISOString();
   const to = end.toISOString();
 
-  const [fridge, cooking, deliveries, cleaning, probe, staff, units, tasks] = await Promise.all([
+  const [fridge, cooking, deliveries, cleaning, probe, counter, staff, units, tasks] = await Promise.all([
     supabase.from("fridge_temp_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("cooking_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("delivery_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("cleaning_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("probe_calibration_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("counter_stock_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("staff").select("id, name").eq("site_id", siteId),
     supabase.from("fridge_units").select("id, name").eq("site_id", siteId),
     supabase.from("cleaning_tasks").select("id, name").eq("site_id", siteId),
   ]);
 
-  for (const result of [fridge, cooking, deliveries, cleaning, probe, staff, units, tasks]) {
+  for (const result of [fridge, cooking, deliveries, cleaning, probe, counter, staff, units, tasks]) {
     if (result.error) throw result.error;
   }
 
   const toMap = (rows: { id: string; name: string }[] | null) =>
     new Map((rows ?? []).map((r) => [r.id, r.name]));
+
+  // Counter batches may point at deliveries from earlier days — look those up
+  // by id so the diary can say which delivery a batch came in on.
+  const deliveryLabels = await fetchDeliveryLabels(
+    (counter.data ?? []).map((row) => row.delivery_log_id).filter((id): id is string => !!id)
+  );
 
   return {
     fridge: fridge.data ?? [],
@@ -70,6 +82,8 @@ async function fetchDay(siteId: string, dateStr: string): Promise<DayData> {
     deliveries: deliveries.data ?? [],
     cleaning: cleaning.data ?? [],
     probe: probe.data ?? [],
+    counter: counter.data ?? [],
+    deliveryLabels,
     staffNames: toMap(staff.data),
     unitNames: toMap(units.data),
     taskNames: toMap(tasks.data),
@@ -340,6 +354,29 @@ export default function DiaryPage() {
                   </span>{" "}
                   — {log.session === "open" ? "opening" : "closing"} clean ·{" "}
                   {formatTime(log.recorded_at)} · {staffName(log.staff_id)}
+                </Row>
+              ))}
+            </Section>
+
+            <Section title="🥩 Counter stock rotation" count={data.counter.length}>
+              {data.counter.map((log) => (
+                <Row key={log.id} flag={log.reason === "end_of_life" || log.reason === "quality"}>
+                  <span className="font-semibold">{log.product_name}</span> —{" "}
+                  {log.event === "put_out"
+                    ? `put out in ${data.unitNames.get(log.unit_id) ?? "serve-over"} · bin by ${log.discard_by ? formatDay(log.discard_by) : "?"} (${log.open_life_days} day open life${log.pack_use_by ? `, pack use-by ${formatDay(log.pack_use_by)}` : ""})`
+                    : `taken off ${data.unitNames.get(log.unit_id) ?? "serve-over"} · ${log.reason ? REASONS[log.reason] : "no reason"}`}{" "}
+                  · {formatTime(log.recorded_at)} · {staffName(log.staff_id)}
+                  {(log.batch_code || log.delivery_log_id) && (
+                    <span className="block text-ink-soft">
+                      {[
+                        log.batch_code ? `Batch ${log.batch_code}` : null,
+                        log.delivery_log_id ? `From delivery: ${data.deliveryLabels.get(log.delivery_log_id) ?? "see delivery log"}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  )}
+                  {log.note && <span className="block mt-1 text-ink-soft">{log.note}</span>}
                 </Row>
               ))}
             </Section>

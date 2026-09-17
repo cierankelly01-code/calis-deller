@@ -21,7 +21,10 @@ type EditorState = {
   allergens: string[];
   mayContain: string[];
   notes: string;
+  openLifeDays: number; // sell within N days once opened for the counter
 };
+
+const LIFE_OPTIONS = [1, 2, 3, 4, 5, 7];
 
 function AllergenChips({ keys, tone }: { keys: string[]; tone: "contains" | "may" }) {
   if (keys.length === 0) return null;
@@ -60,6 +63,7 @@ function ProductCard({ product, onEdit }: { product: ActiveProduct; onEdit: () =
         </>
       )}
       {product.notes && <p className="text-sm text-ink-soft">{product.notes}</p>}
+      <p className="text-xs text-ink-faint">Once open: sell within {product.open_life_days} day{product.open_life_days === 1 ? "" : "s"}</p>
     </div>
   );
 }
@@ -96,7 +100,7 @@ export default function AllergensPage() {
   function startAdd() {
     if (!canEdit) return;
     setSaveError(null);
-    setEditor({ id: null, name: search.trim(), allergens: [], mayContain: [], notes: "" });
+    setEditor({ id: null, name: search.trim(), allergens: [], mayContain: [], notes: "", openLifeDays: 3 });
   }
 
   function startEdit(product: ActiveProduct) {
@@ -108,6 +112,7 @@ export default function AllergensPage() {
       allergens: product.allergens,
       mayContain: product.may_contain,
       notes: product.notes ?? "",
+      openLifeDays: product.open_life_days,
     });
   }
 
@@ -139,6 +144,7 @@ export default function AllergensPage() {
         allergens: editor.allergens,
         may_contain: editor.mayContain,
         notes: editor.notes.trim() || null,
+        open_life_days: editor.openLifeDays,
         active: !deactivate,
         updated_at: new Date().toISOString(),
       };
@@ -216,6 +222,31 @@ export default function AllergensPage() {
                   </button>
                 );
               })}
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-1">
+              Once opened for the counter, sell within
+            </h2>
+            <p className="text-sm text-ink-soft mb-3">
+              Days including the day it goes out. The pack&apos;s own use-by still wins if it&apos;s sooner.
+            </p>
+            <div className="grid grid-cols-6 gap-2">
+              {LIFE_OPTIONS.map((days) => (
+                <button
+                  key={days}
+                  type="button"
+                  onClick={() => setEditor({ ...editor, openLifeDays: days })}
+                  className={`h-12 rounded-2xl text-base font-semibold transition-all active:scale-95 ${
+                    days === editor.openLifeDays
+                      ? "bg-ink text-paper shadow-sm"
+                      : "bg-surface text-ink border border-line shadow-sm"
+                  }`}
+                >
+                  {days}
+                </button>
+              ))}
             </div>
           </section>
 

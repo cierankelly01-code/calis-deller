@@ -11,6 +11,7 @@ shared kitchen iPad. Everything an EHO asks for, recorded in a few taps:
 | 🚚 Delivery checks | Supplier, van/chilled/frozen temps, packaging & date checks, accept/reject with reason |
 | 🧽 Cleaning checklists | Opening & closing task lists, ticked off per staff member |
 | 🌡️ Probe calibration | Weekly iced-water / boiling-water probe accuracy checks |
+| 🥩 Counter stock | Open food in the serve-overs: put out / taken off with reason, bin-by date derived from open life or pack use-by, oldest-sells-first board, "tell the customer" advice, delivery traceability, 28-day prove-it stats, printable board + written procedure |
 | 📖 Diary | Any day's full record, grouped by module — the "show the inspector" page |
 | ⚙️ Settings | Add/remove fridges & freezers (with target ranges), staff, cleaning tasks, suppliers |
 
@@ -34,6 +35,7 @@ shared kitchen iPad. Everything an EHO asks for, recorded in a few taps:
    - the contents of `supabase/migrations/0002_full_diary.sql`
    - the contents of `supabase/seed.sql` (starter staff/units/tasks — edit in-app later)
    - the contents of `supabase/migrations/0003_grants_and_units.sql` (API grants — required)
+   - then every later file in `supabase/migrations/` in filename order (security, sites, counter stock)
 3. Go to **Settings → API** and copy two values:
    - **Project URL** (looks like `https://abcdefgh.supabase.co`)
    - **anon public** key
@@ -68,6 +70,13 @@ works full-screen, and keeps queueing entries even when the wifi drops.
 
 > **Note:** Supabase free-tier projects pause after ~1 week of inactivity. Daily use keeps it
 > alive; if it ever pauses, restore it from the Supabase dashboard in one click.
+
+## Local preview without Supabase
+
+`node scripts/dev-mock.mjs` runs the app on http://localhost:3100 against the simulated
+backend from `tests/mock-backend.mjs` (also the `mock` entry in `.claude/launch.json`).
+Sign in as `manager@example.test` or `staff@example.test`, password `local-test-password`.
+Data lives in memory and is gone when the process stops.
 
 ## Development
 

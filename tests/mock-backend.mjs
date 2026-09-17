@@ -11,11 +11,13 @@ const refreshTokens=new Map();
 const staffId='11111111-1111-4111-8111-111111111111';
 const unitId='22222222-2222-4222-8222-222222222222';
 const taskId='33333333-3333-4333-8333-333333333333';
+const siteId='44444444-4444-4444-8444-444444444444';
 const tables={
-  staff:[{id:staffId,name:'Test colleague',active:true,sort_order:1}],
-  fridge_units:[{id:unitId,name:'Test fridge',unit_type:'fridge',target_min_c:1,target_max_c:5,active:true,sort_order:1}],
-  cleaning_tasks:[{id:taskId,name:'Test worktops',session:'both',active:true,sort_order:1}],
-  suppliers:[],products:[],fridge_temp_logs:[],cooking_logs:[],delivery_logs:[],cleaning_logs:[],probe_calibration_logs:[],
+  sites:[{id:siteId,slug:'test',name:'Test Deli',short_name:'Test',active:true,sort_order:1}],
+  staff:[{id:staffId,site_id:siteId,name:'Test colleague',active:true,sort_order:1}],
+  fridge_units:[{id:unitId,site_id:siteId,name:'Test fridge',unit_type:'fridge',target_min_c:1,target_max_c:5,active:true,sort_order:1}],
+  cleaning_tasks:[{id:taskId,site_id:siteId,name:'Test worktops',session:'both',active:true,sort_order:1}],
+  suppliers:[],products:[],fridge_temp_logs:[],cooking_logs:[],delivery_logs:[],cleaning_logs:[],probe_calibration_logs:[],counter_stock_logs:[],
 };
 function sessionFor(role) {
   const id=role==='manager'?'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa':'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -56,13 +58,17 @@ globalThis.fetch=async(input,init={})=>{
     if(['select','order','limit','offset'].includes(key))return true;
     const index=value.indexOf('.'),op=value.slice(0,index),operand=value.slice(index+1);
     if(op==='eq')return String(row[key])===operand;
+    if(op==='in')return operand.slice(1,-1).split(',').includes(String(row[key]));
     if(op==='gte')return row[key]>=operand;
     if(op==='lt')return row[key]<operand;
     return false;
   });
   if(method==='POST') {
     if(data.client_id && rows.some(row=>row.client_id===data.client_id))return Response.json({code:'23505'},{status:409});
-    rows.push({id:randomUUID(),active:true,sort_order:0,allergens:[],may_contain:[],created_at:new Date().toISOString(),synced_at:new Date().toISOString(),...data,authenticated_user_id:user.id});
+    // Mirrors the stamp trigger: the bin-by date is server-derived (open
+    // life counts the day opened; a sooner pack use-by wins).
+    if(table==='counter_stock_logs'&&data.event==='put_out'){const d=new Date(data.recorded_at);d.setDate(d.getDate()+data.open_life_days-1);const byLife=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;data.discard_by=data.pack_use_by&&data.pack_use_by<byLife?data.pack_use_by:byLife;}
+    rows.push({id:randomUUID(),active:true,sort_order:0,allergens:[],may_contain:[],site_id:tables.staff.find(s=>s.id===data.staff_id)?.site_id,created_at:new Date().toISOString(),synced_at:new Date().toISOString(),...data,authenticated_user_id:user.id});
     return new Response(null,{status:201});
   }
   if(method==='PATCH') {const found=rows.filter(matches);for(const row of found)Object.assign(row,data);return Response.json(found);}
