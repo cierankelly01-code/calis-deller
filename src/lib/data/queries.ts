@@ -217,7 +217,7 @@ export async function fetchAmbientDisplay(siteId: string): Promise<AmbientLog[]>
   since.setHours(0, 0, 0, 0);
   const { data, error } = await supabase
     .from("ambient_display_logs")
-    .select("id, client_id, staff_id, event, batch_client_id, product_id, product_name, quantity, off_by, outcome, note, recorded_at")
+    .select("id, client_id, staff_id, event, batch_client_id, product_id, product_name, quantity, display_minutes, off_by, outcome, note, recorded_at")
     .eq("site_id", siteId)
     .gte("recorded_at", since.toISOString())
     .order("recorded_at", { ascending: false });

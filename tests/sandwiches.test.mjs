@@ -12,18 +12,22 @@ registerHooks({resolve(specifier,context,nextResolve) {
 }});
 
 test('sandwich board: four-hour timers, fridge reserve, once-only returns and staged alerts',async()=>{
-  const {outNow,fridgeReserve,chilledReturns,summariseAmbient,dueAlerts,describeRemaining,computeOffBy}=await import('../src/lib/ambient/board.ts');
+  const {outNow,fridgeReserve,chilledReturns,summariseAmbient,dueAlerts,describeRemaining,computeOffBy,computeLegalBy,describeWindow}=await import('../src/lib/ambient/board.ts');
   const staff=randomUUID();
-  const row=(over)=>({id:randomUUID(),client_id:randomUUID(),staff_id:staff,event:'made',batch_client_id:null,product_id:null,quantity:1,off_by:null,outcome:null,note:null,...over});
+  const row=(over)=>({id:randomUUID(),client_id:randomUUID(),staff_id:staff,event:'made',batch_client_id:null,product_id:null,quantity:1,display_minutes:null,off_by:null,outcome:null,note:null,...over});
   const today=new Date();today.setHours(7,0,0,0);
   const at=(h,m)=>{const d=new Date(today);d.setHours(h,m,0,0);return d.toISOString();};
-  assert.equal(computeOffBy(new Date(at(8,0))),at(12,0));
+  assert.equal(computeOffBy(new Date(at(8,0))),at(11,0),'shop rule defaults to three hours');
+  assert.equal(computeOffBy(new Date(at(8,0)),240),at(12,0));
+  assert.equal(computeOffBy(new Date(at(8,0)),300),at(12,0),'never beyond the legal four');
+  assert.equal(computeLegalBy(new Date(at(8,0))),at(12,0));
+  assert.equal(describeWindow(150),'2h 30m');assert.equal(describeWindow(180),'3h');
 
   const made=[row({product_name:'Ham Salad',quantity:2,recorded_at:at(7,0)}),row({product_name:'Cheese & Onion',quantity:2,recorded_at:at(7,0)}),row({product_name:'Coronation Chicken',quantity:1,recorded_at:at(7,5)})];
-  const out1=row({event:'put_out',product_name:'Ham Salad',quantity:1,recorded_at:at(8,0),off_by:at(12,0)});
-  const out2=row({event:'put_out',product_name:'cheese & onion ',quantity:1,recorded_at:at(8,0)}); // off_by not stamped yet (queued offline)
+  const out1=row({event:'put_out',product_name:'Ham Salad',quantity:1,recorded_at:at(8,0),display_minutes:240,off_by:at(12,0)});
+  const out2=row({event:'put_out',product_name:'cheese & onion ',quantity:1,recorded_at:at(8,0),display_minutes:240}); // off_by not stamped yet (queued offline)
   const sold=row({event:'taken_off',batch_client_id:out1.client_id,product_name:'Ham Salad',quantity:0,outcome:'sold_out',recorded_at:at(11,0)});
-  const out3=row({event:'put_out',product_name:'Ham Salad',quantity:1,recorded_at:at(11,5),off_by:at(15,5)});
+  const out3=row({event:'put_out',product_name:'Ham Salad',quantity:1,recorded_at:at(11,5),display_minutes:180,off_by:at(14,5)});
   const back=row({event:'taken_off',batch_client_id:randomUUID(),product_name:'Turkey Salad',quantity:2,outcome:'chilled',recorded_at:at(10,0)});
   const logs=[...made,out1,out2,sold,out3,back];
 
@@ -31,9 +35,11 @@ test('sandwich board: four-hour timers, fridge reserve, once-only returns and st
   const groups=outNow(logs,now);
   assert.deepEqual(groups.map(g=>[g.outAt,g.quantity,g.status]),[[at(8,0),1,'soon'],[at(11,5),1,'ok']],'sold batch gone; 08:00 group has only the cheese left and is inside 30 minutes');
   assert.equal(groups[0].offBy,at(12,0),'queued put-out gets the same deadline the server will stamp');
+  assert.equal(groups[1].offBy,at(14,5),'three-hour rule');assert.equal(groups[1].legalBy,at(15,5),'legal line is still four hours');
+  assert.equal(groups[1].msLegalLeft-groups[1].msLeft,60*60_000);
   assert.equal(describeRemaining(groups[0].msLeft),'15m left');
   assert.equal(describeRemaining(new Date(at(12,7)).getTime()-now),'22m left');
-  assert.equal(describeRemaining(-5*60_000),'Over by 5m — bin them');
+  assert.equal(describeRemaining(-5*60_000),'Over by 5m');
   assert.equal(describeRemaining(3*3600_000+2*60_000),'3h 02m left');
 
   const reserve=fridgeReserve(logs,today.toISOString().slice(0,10));
@@ -54,7 +60,9 @@ test('sandwich entries are validated on the device like the database will',async
   const {validateWrite}=await import('../src/lib/security/policy.ts');
   const base={client_id:randomUUID(),staff_id:randomUUID(),recorded_at:new Date().toISOString(),product_name:'Ham Salad'};
   assert.ok(validateWrite('ambient_display_logs','POST',{...base,event:'made',quantity:6}));
-  assert.ok(validateWrite('ambient_display_logs','POST',{...base,event:'put_out',quantity:1,product_id:null}));
+  assert.ok(validateWrite('ambient_display_logs','POST',{...base,event:'put_out',quantity:1,product_id:null,display_minutes:180}));
+  assert.throws(()=>validateWrite('ambient_display_logs','POST',{...base,event:'put_out',quantity:1,display_minutes:300}),/Invalid/,'window capped at four hours');
+  assert.throws(()=>validateWrite('ambient_display_logs','POST',{...base,event:'made',quantity:1,display_minutes:180}),/Invalid/,'only a put-out has a window');
   assert.throws(()=>validateWrite('ambient_display_logs','POST',{...base,event:'put_out',quantity:0}),/Invalid/,'nothing out is not a put-out');
   assert.throws(()=>validateWrite('ambient_display_logs','POST',{...base,event:'put_out',quantity:1,off_by:new Date().toISOString()}),/Invalid/,'the deadline is never client-supplied');
   assert.throws(()=>validateWrite('ambient_display_logs','POST',{...base,event:'put_out',quantity:1,outcome:'sold_out'}),/Invalid/);
@@ -77,7 +85,7 @@ test('Postgres stamps the four-hour deadline, guards take-offs and seeds the lin
       create function auth.jwt() returns jsonb language sql stable as $$select jsonb_build_object('session_id',current_setting('request.jwt.claim.session_id',true))$$;
       grant usage on schema auth to anon,authenticated;
       grant execute on function auth.uid(),auth.jwt() to anon,authenticated;`);
-    for(const filename of ['0001_init.sql','0002_full_diary.sql','0003_grants_and_units.sql','20260908170550_food_log_security.sql','20260914090000_sites.sql','20260916120000_counter_stock.sql','20260917100000_shared_products.sql','20260917140000_ambient_display.sql']) {
+    for(const filename of ['0001_init.sql','0002_full_diary.sql','0003_grants_and_units.sql','20260908170550_food_log_security.sql','20260914090000_sites.sql','20260916120000_counter_stock.sql','20260917100000_shared_products.sql','20260917140000_ambient_display.sql','20260917180000_display_window.sql']) {
       await db.exec((await readFile(new URL('../supabase/migrations/'+filename,import.meta.url),'utf8')).replace('create extension if not exists pgcrypto;',''));
     }
     const seeded=(await db.query("select name,category,site_id,allergens from products where category='sandwich' order by name")).rows;
@@ -92,13 +100,21 @@ test('Postgres stamps the four-hour deadline, guards take-offs and seeds the lin
     await db.query('insert into staff(id,name,site_id) values($1,$2,$3),($4,$5,$6)',[staffId,'Test Staff',stratford,otherStaff,'Other Shop',bentley]);
     await db.exec('set role authenticated');
 
-    const insert=(values)=>db.query("insert into ambient_display_logs(client_id,staff_id,event,batch_client_id,product_name,quantity,outcome,recorded_at) values($1,$2,$3,$4,$5,$6,$7,$8)",values);
+    const insert=(values)=>db.query("insert into ambient_display_logs(client_id,staff_id,event,batch_client_id,product_name,quantity,outcome,recorded_at,display_minutes) values($1,$2,$3,$4,$5,$6,$7,$8,$9)",values.length===8?[...values,null]:values);
     const batch=randomUUID(),otherBatch=randomUUID();
     await insert([randomUUID(),staffId,'made',null,'Ham Salad',6,null,'2026-09-16T06:00:00Z']);
     await insert([batch,staffId,'put_out',null,'Ham Salad',1,null,'2026-09-16T07:00:00Z']);
     await insert([otherBatch,otherStaff,'put_out',null,'Ham Salad',1,null,'2026-09-16T07:00:00Z']);
-    const saved=(await db.query('select off_by,site_id from ambient_display_logs where client_id=$1',[batch])).rows[0];
-    assert.equal(new Date(saved.off_by).toISOString(),'2026-09-16T11:00:00.000Z','four hours from going out, stamped by the server');
+    const saved=(await db.query('select off_by,site_id,display_minutes from ambient_display_logs where client_id=$1',[batch])).rows[0];
+    assert.equal(new Date(saved.off_by).toISOString(),'2026-09-16T10:00:00.000Z','three hours from going out by default, stamped by the server');
+    assert.equal(saved.display_minutes,180);
+    const twoHours=randomUUID();
+    await insert([twoHours,staffId,'put_out',null,'Ham Salad',1,null,'2026-09-16T07:00:00Z',120]);
+    assert.equal(new Date((await db.query('select off_by from ambient_display_logs where client_id=$1',[twoHours])).rows[0].off_by).toISOString(),'2026-09-16T09:00:00.000Z','chosen window honoured');
+    const tooLong=randomUUID();
+    await insert([tooLong,staffId,'put_out',null,'Ham Salad',1,null,'2026-09-16T07:00:00Z',300]);
+    const clamped=(await db.query('select off_by,display_minutes from ambient_display_logs where client_id=$1',[tooLong])).rows[0];
+    assert.equal(clamped.display_minutes,240);assert.equal(new Date(clamped.off_by).toISOString(),'2026-09-16T11:00:00.000Z','never beyond the legal four hours');
     assert.equal(saved.site_id,stratford);
     assert.equal((await db.query('select off_by from ambient_display_logs where event=$1',['made'])).rows[0].off_by,null,'only a put-out has a deadline');
     await assert.rejects(insert([randomUUID(),staffId,'put_out',null,'Ham Salad',0,null,'2026-09-16T07:00:00Z']),/check constraint/);

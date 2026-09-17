@@ -15,6 +15,7 @@ import {
   OUTCOMES,
   chilledReturns,
   describeRemaining,
+  describeWindow,
   formatClock,
   fridgeReserve,
   outNow,
@@ -81,8 +82,8 @@ export default function SandwichBoardPage() {
     }
     const lines: Closing["lines"] = {};
     for (const item of group.items) {
-      // Over the four hours: the only lawful outcome for what's left is the bin.
-      lines[item.clientId] = { outcome: group.status === "overdue" ? "binned" : null, left: 0 };
+      // Past the legal four hours: the only lawful outcome for what's left is the bin.
+      lines[item.clientId] = { outcome: group.msLegalLeft <= 0 ? "binned" : null, left: 0 };
     }
     setClosing({ groupKey: group.key, lines });
   }
@@ -124,7 +125,7 @@ export default function SandwichBoardPage() {
           recorded_at: recordedAt,
         };
         const clientId = await queueEntry("ambient_display_logs", payload);
-        rows.push({ ...payload, id: clientId, client_id: clientId, off_by: null });
+        rows.push({ ...payload, id: clientId, client_id: clientId, display_minutes: null, off_by: null });
       }
       for (const row of rows) appendToTodayCache(`cd-ambient:${site.id}`, row);
       setLocalLogs((list) => [...rows, ...list]);
@@ -145,9 +146,12 @@ export default function SandwichBoardPage() {
     else await enableAlerts();
   }
 
+  const anyPastLegal = groups.some((g) => g.msLegalLeft <= 0);
   const headline =
-    summary.overdue > 0
-      ? "Over the four hours — take them off and bin what's left"
+    anyPastLegal
+      ? "Over four hours — take them off and bin what's left"
+      : summary.overdue > 0
+        ? "Time's up — take them off (fridge is fine)"
       : summary.groups > 0 && summary.soonestMsLeft !== null
         ? describeRemaining(summary.soonestMsLeft)
         : summary.inFridge > 0
@@ -168,7 +172,7 @@ export default function SandwichBoardPage() {
           <p className="text-xs uppercase tracking-[0.18em] font-bold opacity-70">On top of the counter</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">{headline}</p>
           <p className="mt-1 text-sm opacity-75">
-            {summary.out} out · {summary.inFridge} in the fridge ready to go · four hours at room temperature, once only
+            {summary.out} out · {summary.inFridge} in the fridge ready to go · once out, never out again
           </p>
         </section>
 
@@ -187,7 +191,7 @@ export default function SandwichBoardPage() {
           >
             <span className="text-2xl" aria-hidden>☀️</span>
             <span className="block mt-1.5 font-bold">Put out on top</span>
-            <span className="block text-[13px] text-white/75">starts the 4-hour clock</span>
+            <span className="block text-[13px] text-white/75">starts the clock</span>
           </Link>
         </div>
 
@@ -223,7 +227,12 @@ export default function SandwichBoardPage() {
                     Out since {formatClock(group.outAt)} · {staffName(group.items[0].staffId)}
                   </p>
                   <p className={`mt-0.5 text-3xl font-bold tabular-nums ${style.big}`}>{describeRemaining(group.msLeft)}</p>
-                  <p className="text-sm text-ink-soft">Off the counter by <span className="font-semibold text-ink">{formatClock(group.offBy)}</span></p>
+                  <p className="text-sm text-ink-soft">
+                    Off the counter by <span className="font-semibold text-ink">{formatClock(group.offBy)}</span> ({describeWindow(group.displayMinutes)} rule)
+                    {group.msLegalLeft > 0
+                      ? ` · legal limit ${formatClock(group.legalBy)}`
+                      : " · PAST THE 4-HOUR LEGAL LIMIT"}
+                  </p>
                 </div>
                 <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-bold ${style.pill}`}>{group.quantity} out</span>
               </div>
@@ -243,15 +252,19 @@ export default function SandwichBoardPage() {
                     group.status === "overdue" ? "bg-danger text-white" : "bg-ink text-paper"
                   }`}
                 >
-                  {group.status === "overdue" ? "Take off now — bin what's left" : "Take them off"}
+                  {group.msLegalLeft <= 0 ? "Take off now — bin what's left" : group.status === "overdue" ? "Take off now" : "Take them off"}
                 </button>
               ) : (
                 <div className="mt-3 space-y-3 rounded-xl bg-paper border border-line p-3">
-                  {group.status === "overdue" && (
+                  {group.msLegalLeft <= 0 ? (
                     <p className="text-sm font-semibold text-danger">
                       Over four hours at room temperature: anything left must be binned — it can&apos;t be chilled and sold.
                     </p>
-                  )}
+                  ) : group.status === "overdue" ? (
+                    <p className="text-sm font-semibold text-gold-deep">
+                      Over your {describeWindow(group.displayMinutes)} but under the legal four — leftovers can still go back in the fridge to sell chilled. Bin-only from {formatClock(group.legalBy)}.
+                    </p>
+                  ) : null}
                   {group.items.map((item) => {
                     const line = closing!.lines[item.clientId];
                     return (
@@ -259,7 +272,7 @@ export default function SandwichBoardPage() {
                         <p className="font-semibold text-ink">{item.quantity} × {item.productName}</p>
                         <div className="grid grid-cols-3 gap-2">
                           {(Object.keys(OUTCOMES) as Outcome[]).map((key) => {
-                            const disabled = key === "chilled" && group.status === "overdue";
+                            const disabled = key === "chilled" && group.msLegalLeft <= 0;
                             return (
                               <button
                                 key={key}
@@ -359,7 +372,7 @@ export default function SandwichBoardPage() {
               ))}
             </div>
             <p className="mt-2 text-xs text-ink-faint">
-              These have had their four hours. Sell them from the fridge or serve-over today; they can&apos;t go back on top.
+              These have been out once already. Sell them from the fridge or serve-over today; they can&apos;t go back on top.
             </p>
           </section>
         )}

@@ -25,7 +25,7 @@ const LOG_TILES = [
   { href: "/log/cleaning", emoji: "🧽", title: "Cleaning", sub: "Opening & closing" },
   { href: "/log/probe", emoji: "🌡️", title: "Probe check", sub: "Weekly calibration" },
   { href: "/counter", emoji: "🥩", title: "Counter stock", sub: "Put out · take off · dates" },
-  { href: "/sandwiches", emoji: "🥪", title: "Sandwiches", sub: "4-hour timer · fridge reserve" },
+  { href: "/sandwiches", emoji: "🥪", title: "Sandwiches", sub: "Counter timer · fridge reserve" },
   { href: "/diary", emoji: "📖", title: "Diary", sub: "Any day's records" },
 ] as const;
 
@@ -207,7 +207,7 @@ export default function DashboardPage() {
                   }`}
                 >
                   {sandwiches.overdue > 0
-                    ? "⚠ over 4 hours — take off now"
+                    ? "⚠ time's up — take off now"
                     : sandwiches.out > 0 && sandwiches.soonestMsLeft !== null
                       ? `${sandwiches.out} out · ${describeRemaining(sandwiches.soonestMsLeft)} · off by ${formatClock(sandwichGroups[0].offBy)}`
                       : `${sandwiches.inFridge} in the fridge · nothing out`}

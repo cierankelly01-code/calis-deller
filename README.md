@@ -12,7 +12,7 @@ shared kitchen iPad. Everything an EHO asks for, recorded in a few taps:
 | 🧽 Cleaning checklists | Opening & closing task lists, ticked off per staff member |
 | 🌡️ Probe calibration | Weekly iced-water / boiling-water probe accuracy checks |
 | 🥩 Counter stock | Open food in the serve-overs: put out / taken off with reason, bin-by date derived from open life or pack use-by, oldest-sells-first board, "tell the customer" advice, delivery traceability, 28-day prove-it stats, printable board + written procedure |
-| 🥪 Sandwiches | The 4-hour rule for chilled food out at room temperature: made → fridge reserve → put out (server-stamped deadline) → taken off as sold / chilled / binned. Live countdown on every page, chime + notification at 30 min, 10 min and time-up, "once only" enforced |
+| 🥪 Sandwiches | Chilled food out at room temperature: made → fridge reserve → put out under the shop's own window (default 3h, server-stamped; the legal 4h line tracked alongside) → taken off as sold / chilled / binned. Live countdown on every page, chime + notification at 30 min, 10 min and time-up, "once only" enforced |
 | 📖 Diary | Any day's full record, grouped by module — the "show the inspector" page |
 | ⚙️ Settings | Add/remove fridges & freezers (with target ranges), staff, cleaning tasks, suppliers |
 

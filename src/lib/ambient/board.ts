@@ -17,13 +17,19 @@ export type AmbientLog = Pick<
   | "product_id"
   | "product_name"
   | "quantity"
+  | "display_minutes"
   | "off_by"
   | "outcome"
   | "note"
   | "recorded_at"
 >;
 
+// The legal line: a single period of less than four hours, once only.
 export const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+// The shop's own window — they come off with an hour in hand so leftovers
+// can go back in the fridge and be sold chilled. Chosen per put-out.
+export const DEFAULT_DISPLAY_MINUTES = 180;
+export const DISPLAY_OPTIONS = [120, 150, 180, 210, 240] as const;
 // Two warnings before the deadline and one when it passes.
 export const ALERT_STAGES = [
   { key: "30m", atMsLeft: 30 * 60 * 1000, title: "Sandwiches: 30 minutes left" },
@@ -50,10 +56,13 @@ export type OutStatus = "ok" | "soon" | "overdue";
 export type OutGroup = {
   key: string; // the shared put-out timestamp
   outAt: string; // ISO
-  offBy: string; // ISO — four hours after outAt
+  offBy: string; // ISO — the shop's take-off time
+  legalBy: string; // ISO — four hours after outAt, the point past which leftovers must be binned
+  displayMinutes: number;
   items: OutItem[];
   quantity: number;
-  msLeft: number; // negative once over
+  msLeft: number; // to offBy; negative once over
+  msLegalLeft: number; // to legalBy
   status: OutStatus;
 };
 
@@ -61,8 +70,18 @@ export function productKey(name: string): string {
   return name.trim().toLowerCase();
 }
 
-export function computeOffBy(outAt: Date): string {
+export function computeOffBy(outAt: Date, displayMinutes: number = DEFAULT_DISPLAY_MINUTES): string {
+  return new Date(outAt.getTime() + Math.min(displayMinutes, 240) * 60_000).toISOString();
+}
+
+export function computeLegalBy(outAt: Date): string {
   return new Date(outAt.getTime() + FOUR_HOURS_MS).toISOString();
+}
+
+export function describeWindow(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
 export function formatClock(iso: string): string {
@@ -74,7 +93,7 @@ export function describeRemaining(msLeft: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   const span = h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
-  if (msLeft < 0) return `Over by ${span} — bin them`;
+  if (msLeft < 0) return `Over by ${span}`;
   if (msLeft === 0) return "Time's up — take them off";
   return `${span} left`;
 }
@@ -89,15 +108,20 @@ export function outNow(logs: AmbientLog[], now: number = Date.now()): OutGroup[]
   const groups = new Map<string, OutGroup>();
   for (const log of logs) {
     if (log.event !== "put_out" || takenOff.has(log.client_id)) continue;
-    const offBy = log.off_by ?? computeOffBy(new Date(log.recorded_at));
+    const displayMinutes = log.display_minutes ?? DEFAULT_DISPLAY_MINUTES;
+    const offBy = log.off_by ?? computeOffBy(new Date(log.recorded_at), displayMinutes);
+    const legalBy = computeLegalBy(new Date(log.recorded_at));
     const key = log.recorded_at;
     const group = groups.get(key) ?? {
       key,
       outAt: log.recorded_at,
       offBy,
+      legalBy,
+      displayMinutes,
       items: [],
       quantity: 0,
       msLeft: new Date(offBy).getTime() - now,
+      msLegalLeft: new Date(legalBy).getTime() - now,
       status: "ok",
     };
     group.items.push({

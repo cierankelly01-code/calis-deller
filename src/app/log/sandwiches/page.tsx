@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -14,7 +14,16 @@ import { useRememberedStaff } from "@/lib/staffMemory";
 import { appendToTodayCache } from "@/lib/data/optimistic";
 import { queueEntry } from "@/lib/offline/outbox";
 import { syncOutbox } from "@/lib/offline/sync";
-import { computeOffBy, formatClock, fridgeReserve, productKey, type AmbientLog } from "@/lib/ambient/board";
+import {
+  DEFAULT_DISPLAY_MINUTES,
+  DISPLAY_OPTIONS,
+  computeOffBy,
+  describeWindow,
+  formatClock,
+  fridgeReserve,
+  productKey,
+  type AmbientLog,
+} from "@/lib/ambient/board";
 
 // One screen, two jobs, same quantity grid:
 //   made    — "I've made these and they're in the fridge" (the day's reserve)
@@ -25,6 +34,20 @@ import { computeOffBy, formatClock, fridgeReserve, productKey, type AmbientLog }
 // — "six out, six underneath" is the normal morning.
 
 type Mode = "made" | "put_out";
+
+// The take-off window is a shop rule, remembered per device.
+const WINDOW_KEY = "cd-sandwich-window";
+function subscribeWindow() {
+  return () => {};
+}
+function readStoredWindow(): number {
+  try {
+    const stored = Number(window.localStorage.getItem(WINDOW_KEY));
+    return DISPLAY_OPTIONS.includes(stored as (typeof DISPLAY_OPTIONS)[number]) ? stored : DEFAULT_DISPLAY_MINUTES;
+  } catch {
+    return DEFAULT_DISPLAY_MINUTES;
+  }
+}
 
 type Line = { key: string; productId: string | null; productName: string; quantity: number; special: boolean };
 
@@ -38,6 +61,17 @@ function SandwichLogForm() {
 
   const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
   const [mode, setMode] = useState<Mode>(params.get("mode") === "made" ? "made" : "put_out");
+  const storedWindow = useSyncExternalStore(subscribeWindow, readStoredWindow, () => DEFAULT_DISPLAY_MINUTES);
+  const [windowChoice, setWindowChoice] = useState<number | null>(null);
+  const displayMinutes = windowChoice ?? storedWindow;
+  function pickWindow(minutes: number) {
+    setWindowChoice(minutes);
+    try {
+      window.localStorage.setItem(WINDOW_KEY, String(minutes));
+    } catch {
+      // Best-effort convenience only.
+    }
+  }
   const [edits, setEdits] = useState<Record<string, number>>({});
   const [specials, setSpecials] = useState<Line[]>([]);
   const [specialName, setSpecialName] = useState("");
@@ -113,6 +147,7 @@ function SandwichLogForm() {
           product_id: line.productId,
           product_name: line.productName.trim(),
           quantity: line.quantity,
+          display_minutes: mode === "put_out" ? displayMinutes : null,
           recorded_at: recordedAt.toISOString(),
         };
         const clientId = await queueEntry("ambient_display_logs", payload);
@@ -121,7 +156,7 @@ function SandwichLogForm() {
           id: clientId,
           client_id: clientId,
           batch_client_id: null,
-          off_by: mode === "put_out" ? computeOffBy(recordedAt) : null,
+          off_by: mode === "put_out" ? computeOffBy(recordedAt, displayMinutes) : null,
           outcome: null,
           note: null,
         });
@@ -143,7 +178,7 @@ function SandwichLogForm() {
     }
   }
 
-  const offBy = formatClock(computeOffBy(new Date()));
+  const offBy = formatClock(computeOffBy(new Date(), displayMinutes));
 
   return (
     <div className="flex flex-col flex-1">
@@ -158,7 +193,7 @@ function SandwichLogForm() {
         <div className="grid grid-cols-2 gap-2.5">
           {([
             { key: "made", label: "🧊 Made & in the fridge", sub: "today's reserve" },
-            { key: "put_out", label: "☀️ Put out on the counter", sub: "starts the 4-hour clock" },
+            { key: "put_out", label: "☀️ Put out on the counter", sub: "starts the clock" },
           ] as const).map((option) => (
             <button
               key={option.key}
@@ -191,7 +226,7 @@ function SandwichLogForm() {
           <p className="text-sm text-ink-soft mb-3">
             {mode === "made"
               ? "Everything you've made and chilled. Sandwiches are products — add new regulars in the Allergen Guide."
-              : "Only sandwiches straight from the fridge that have never been out before. Anything that's already had its four hours stays chilled."}
+              : "Only sandwiches straight from the fridge that have never been out before. Anything that's already been out stays chilled."}
           </p>
           {lines.length === 0 && (
             <p className="text-ink-soft rounded-2xl bg-surface border border-line p-4">
@@ -281,6 +316,32 @@ function SandwichLogForm() {
           </div>
         </section>
 
+        {mode === "put_out" && (
+          <section>
+            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-1">
+              Take them off after
+            </h2>
+            <p className="text-sm text-ink-soft mb-2.5">
+              Your rule. Under 4 hours, leftovers can go back in the fridge and be sold chilled; the law&apos;s limit is less
+              than 4 hours, once only.
+            </p>
+            <div className="grid grid-cols-5 gap-2">
+              {DISPLAY_OPTIONS.map((minutes) => (
+                <button
+                  key={minutes}
+                  type="button"
+                  onClick={() => pickWindow(minutes)}
+                  className={`h-12 rounded-2xl text-sm font-semibold transition-all active:scale-95 ${
+                    minutes === displayMinutes ? "bg-ink text-paper shadow-sm" : "bg-surface text-ink border border-line shadow-sm"
+                  }`}
+                >
+                  {describeWindow(minutes)}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="rounded-2xl bg-ink text-paper px-5 py-4 shadow-sm">
           <p className="text-xs uppercase tracking-[0.18em] text-paper/60 font-bold">
             {mode === "made" ? "Going in the fridge" : "Going out now"}
@@ -292,7 +353,7 @@ function SandwichLogForm() {
           <p className="mt-1 text-sm text-paper/70">
             {mode === "made"
               ? "Chilled at 8°C or below until they go out. Made today, sold today."
-              : "Less than four hours at room temperature, once only. The app will count down and alert before time."}
+              : `${describeWindow(displayMinutes)} at room temperature, once only. The app will count down and alert before time.`}
           </p>
           {overReserve.length > 0 && (
             <p className="mt-2 text-sm text-gold font-semibold">

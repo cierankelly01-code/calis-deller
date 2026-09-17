@@ -39,7 +39,7 @@ const fields: Record<string, Record<string, Rule>> = {
   delivery_logs:{...log,supplier_id:optional(uuid),supplier_name:text(200,true),vehicle_temp_c:optional(temp),chilled_temp_c:optional(temp),frozen_temp_c:optional(temp),packaging_ok:boolean,in_date_ok:boolean,accepted:boolean,rejection_reason:note,notes:note},
   cleaning_logs:{...log,task_id:uuid,session:oneOf('open','close'),note},
   probe_calibration_logs:{...log,method:oneOf('ice','boiling'),reading_c:temp,pass:boolean,corrective_action:note},
-  ambient_display_logs:{...log,event:oneOf('made','put_out','taken_off'),batch_client_id:optional(uuid),product_id:optional(uuid),product_name:text(200,true),quantity:integer(0,1000),outcome:optional(oneOf('sold_out','chilled','binned')),note},
+  ambient_display_logs:{...log,event:oneOf('made','put_out','taken_off'),batch_client_id:optional(uuid),product_id:optional(uuid),product_name:text(200,true),quantity:integer(0,1000),display_minutes:optional(integer(30,240)),outcome:optional(oneOf('sold_out','chilled','binned')),note},
   counter_stock_logs:{...log,event:oneOf('put_out','taken_off'),batch_client_id:optional(uuid),product_id:optional(uuid),product_name:text(200,true),unit_id:uuid,open_life_days:optional(integer(1,90)),pack_use_by:optional(date),batch_code:optional(text(200)),delivery_log_id:optional(uuid),reason:optional(oneOf('sold_out','end_of_life','quality','other')),note},
 };
 // Log rows carry no site_id: the database derives it from the staff member.
@@ -72,6 +72,7 @@ export function validateWrite(table: string, method: string, input: unknown): Re
   if (table === 'ambient_display_logs' && method === 'POST') {
     const takenOff = result.event === 'taken_off';
     if (takenOff ? (typeof result.batch_client_id !== 'string' || typeof result.outcome !== 'string') : (result.batch_client_id != null || result.outcome != null || result.quantity === 0)) throw new Error('Invalid entry');
+    if (result.event !== 'put_out' && result.display_minutes != null) throw new Error('Invalid entry');
   }
   if (table === 'counter_stock_logs' && method === 'POST') {
     // Mirrors the database's event-shape constraint so a malformed entry is

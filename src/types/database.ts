@@ -184,7 +184,8 @@ export type AmbientDisplayLogRow = {
   product_id: string | null;
   product_name: string;
   quantity: number; // made/put_out: how many; taken_off: how many were left
-  off_by: string | null; // put_out: server-derived, four hours after recorded_at
+  display_minutes: number | null; // put_out: the shop's window (default 180), never over 240
+  off_by: string | null; // put_out: server-derived, recorded_at + display_minutes
   outcome: "sold_out" | "chilled" | "binned" | null;
   note: string | null;
   recorded_at: string;
