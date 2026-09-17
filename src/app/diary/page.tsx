@@ -7,7 +7,9 @@ import { supabase } from "@/lib/supabase/client";
 import { fetchDeliveryLabels } from "@/lib/data/queries";
 import { useSite } from "@/lib/site/SiteContext";
 import { REASONS, formatDay } from "@/lib/counter/board";
+import { OUTCOMES } from "@/lib/ambient/board";
 import type {
+  AmbientDisplayLogRow,
   CleaningLogRow,
   CookingLogRow,
   CounterStockLogRow,
@@ -27,6 +29,7 @@ type DayData = {
   cleaning: CleaningLogRow[];
   probe: ProbeCalibrationLogRow[];
   counter: CounterStockLogRow[];
+  ambient: AmbientDisplayLogRow[];
   deliveryLabels: Map<string, string>; // delivery id → "Supplier · date", for linked counter batches
   staffNames: Map<string, string>;
   unitNames: Map<string, string>;
@@ -51,19 +54,20 @@ async function fetchDay(siteId: string, dateStr: string): Promise<DayData> {
   const from = start.toISOString();
   const to = end.toISOString();
 
-  const [fridge, cooking, deliveries, cleaning, probe, counter, staff, units, tasks] = await Promise.all([
+  const [fridge, cooking, deliveries, cleaning, probe, counter, ambient, staff, units, tasks] = await Promise.all([
     supabase.from("fridge_temp_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("cooking_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("delivery_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("cleaning_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("probe_calibration_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("counter_stock_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("ambient_display_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("staff").select("id, name").eq("site_id", siteId),
     supabase.from("fridge_units").select("id, name").eq("site_id", siteId),
     supabase.from("cleaning_tasks").select("id, name").eq("site_id", siteId),
   ]);
 
-  for (const result of [fridge, cooking, deliveries, cleaning, probe, counter, staff, units, tasks]) {
+  for (const result of [fridge, cooking, deliveries, cleaning, probe, counter, ambient, staff, units, tasks]) {
     if (result.error) throw result.error;
   }
 
@@ -83,6 +87,7 @@ async function fetchDay(siteId: string, dateStr: string): Promise<DayData> {
     cleaning: cleaning.data ?? [],
     probe: probe.data ?? [],
     counter: counter.data ?? [],
+    ambient: ambient.data ?? [],
     deliveryLabels,
     staffNames: toMap(staff.data),
     unitNames: toMap(units.data),
@@ -376,6 +381,21 @@ export default function DiaryPage() {
                         .join(" · ")}
                     </span>
                   )}
+                  {log.note && <span className="block mt-1 text-ink-soft">{log.note}</span>}
+                </Row>
+              ))}
+            </Section>
+
+            <Section title="🥪 Sandwiches — 4-hour rule" count={data.ambient.length}>
+              {data.ambient.map((log) => (
+                <Row key={log.id} flag={log.outcome === "binned"}>
+                  <span className="font-semibold">{log.quantity} × {log.product_name}</span> —{" "}
+                  {log.event === "made"
+                    ? "made and chilled"
+                    : log.event === "put_out"
+                      ? `put out on the counter · off by ${log.off_by ? formatTime(log.off_by) : "?"}`
+                      : `taken off · ${log.outcome ? OUTCOMES[log.outcome] : ""}${log.outcome === "sold_out" ? "" : ` (${log.quantity} left)`}`}{" "}
+                  · {formatTime(log.recorded_at)} · {staffName(log.staff_id)}
                   {log.note && <span className="block mt-1 text-ink-soft">{log.note}</span>}
                 </Row>
               ))}

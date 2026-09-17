@@ -49,6 +49,7 @@ const entries={
   cleaning_logs:{task_id:'33333333-3333-4333-8333-333333333333',session:'open'},
   probe_calibration_logs:{method:'ice',reading_c:0,pass:true},
   counter_stock_logs:{event:'put_out',product_name:'Test ham',unit_id:'22222222-2222-4222-8222-222222222222',open_life_days:3},
+  ambient_display_logs:{event:'put_out',product_name:'Test sandwich',quantity:2},
 };
 for(const [table,entry] of Object.entries(entries)) {
   const payload={...common,...entry,client_id:randomUUID()};

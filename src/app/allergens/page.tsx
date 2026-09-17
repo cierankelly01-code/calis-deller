@@ -21,6 +21,7 @@ type EditorState = {
   mayContain: string[];
   notes: string;
   openLifeDays: number; // sell within N days once opened for the counter
+  category: "deli" | "sandwich";
 };
 
 const LIFE_OPTIONS = [1, 2, 3, 4, 5, 7];
@@ -62,7 +63,11 @@ function ProductCard({ product, onEdit }: { product: ActiveProduct; onEdit: () =
         </>
       )}
       {product.notes && <p className="text-sm text-ink-soft">{product.notes}</p>}
-      <p className="text-xs text-ink-faint">Once open: sell within {product.open_life_days} day{product.open_life_days === 1 ? "" : "s"}</p>
+      <p className="text-xs text-ink-faint">
+        {product.category === "sandwich"
+          ? "🥪 Sandwich — goes out on top of the counter (4-hour rule)"
+          : `Once open: sell within ${product.open_life_days} day${product.open_life_days === 1 ? "" : "s"}`}
+      </p>
     </div>
   );
 }
@@ -99,7 +104,7 @@ export default function AllergensPage() {
   function startAdd() {
     if (!canEdit) return;
     setSaveError(null);
-    setEditor({ id: null, name: search.trim(), allergens: [], mayContain: [], notes: "", openLifeDays: 3 });
+    setEditor({ id: null, name: search.trim(), allergens: [], mayContain: [], notes: "", openLifeDays: 3, category: "deli" });
   }
 
   function startEdit(product: ActiveProduct) {
@@ -112,6 +117,7 @@ export default function AllergensPage() {
       mayContain: product.may_contain,
       notes: product.notes ?? "",
       openLifeDays: product.open_life_days,
+      category: product.category,
     });
   }
 
@@ -143,6 +149,7 @@ export default function AllergensPage() {
         may_contain: editor.mayContain,
         notes: editor.notes.trim() || null,
         open_life_days: editor.openLifeDays,
+        category: editor.category,
         active: !deactivate,
         updated_at: new Date().toISOString(),
       };
@@ -224,6 +231,31 @@ export default function AllergensPage() {
           </section>
 
           <section>
+            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2">
+              What kind of product?
+            </h2>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { key: "deli", label: "🥩 Counter / deli", sub: "sold chilled from a serve-over" },
+                { key: "sandwich", label: "🥪 Sandwich", sub: "goes out on top, 4-hour rule" },
+              ] as const).map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setEditor({ ...editor, category: option.key })}
+                  className={`min-h-14 rounded-2xl px-3 py-2 text-left text-sm font-semibold transition-all active:scale-95 ${
+                    editor.category === option.key ? "bg-ink text-paper shadow-sm" : "bg-surface text-ink border border-line shadow-sm"
+                  }`}
+                >
+                  {option.label}
+                  <span className={`block text-xs font-normal ${editor.category === option.key ? "text-paper/70" : "text-ink-soft"}`}>{option.sub}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {editor.category === "deli" && (
+          <section>
             <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-1">
               Once opened for the counter, sell within
             </h2>
@@ -247,6 +279,7 @@ export default function AllergensPage() {
               ))}
             </div>
           </section>
+          )}
 
           <section>
             <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2">

@@ -67,6 +67,7 @@ export type ProductRow = {
   may_contain: string[];
   notes: string | null;
   open_life_days: number; // sell within N days of opening, day opened = day 1
+  category: "deli" | "sandwich"; // sandwiches go out at room temperature (4-hour rule)
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -173,6 +174,25 @@ export type CounterStockLogRow = {
   created_by_device: string | null;
 };
 
+export type AmbientDisplayLogRow = {
+  id: string;
+  site_id: string;
+  client_id: string;
+  staff_id: string;
+  event: "made" | "put_out" | "taken_off";
+  batch_client_id: string | null; // taken_off → the put_out row's client_id
+  product_id: string | null;
+  product_name: string;
+  quantity: number; // made/put_out: how many; taken_off: how many were left
+  off_by: string | null; // put_out: server-derived, four hours after recorded_at
+  outcome: "sold_out" | "chilled" | "binned" | null;
+  note: string | null;
+  recorded_at: string;
+  synced_at: string;
+  corrects_entry_id: string | null;
+  created_by_device: string | null;
+};
+
 // supabase-js v2 requires each table to carry a Relationships array and the
 // schema to declare Views/Functions — without them the schema fails its
 // GenericSchema constraint and every Insert/Update degrades to `never`.
@@ -215,6 +235,10 @@ export type Database = {
       counter_stock_logs: TableDef<
         CounterStockLogRow,
         "client_id" | "staff_id" | "event" | "product_name" | "unit_id" | "recorded_at"
+      >;
+      ambient_display_logs: TableDef<
+        AmbientDisplayLogRow,
+        "client_id" | "staff_id" | "event" | "product_name" | "quantity" | "recorded_at"
       >;
     };
     Views: Record<string, never>;

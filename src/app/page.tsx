@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
 import { useSite } from "@/lib/site/SiteContext";
 import {
@@ -10,9 +10,11 @@ import {
   fetchActiveCleaningTasks,
   fetchTodayCleaningLogs,
   fetchCounterStock,
+  fetchAmbientDisplay,
 } from "@/lib/data/queries";
 import { currentSlot, computeUnitSlotStatus } from "@/lib/dashboard/dueStatus";
 import { openBatches, summarise } from "@/lib/counter/board";
+import { describeRemaining, formatClock, fridgeReserve, outNow, summariseAmbient } from "@/lib/ambient/board";
 import { SyncStatusPill } from "@/components/ui/SyncStatusPill";
 import { useUser } from "@/components/auth/AuthBoundary";
 
@@ -23,6 +25,7 @@ const LOG_TILES = [
   { href: "/log/cleaning", emoji: "🧽", title: "Cleaning", sub: "Opening & closing" },
   { href: "/log/probe", emoji: "🌡️", title: "Probe check", sub: "Weekly calibration" },
   { href: "/counter", emoji: "🥩", title: "Counter stock", sub: "Put out · take off · dates" },
+  { href: "/sandwiches", emoji: "🥪", title: "Sandwiches", sub: "4-hour timer · fridge reserve" },
   { href: "/diary", emoji: "📖", title: "Diary", sub: "Any day's records" },
 ] as const;
 
@@ -42,6 +45,12 @@ export default function DashboardPage() {
   const { data: cleaningTasks } = useCachedQuery(`cd-cleaning-tasks:${site.id}`, () => fetchActiveCleaningTasks(site.id));
   const { data: todayCleaning } = useCachedQuery(`cd-today-cleaning-logs:${site.id}`, () => fetchTodayCleaningLogs(site.id));
   const { data: counterLogs } = useCachedQuery(`cd-counter-stock:${site.id}`, () => fetchCounterStock(site.id));
+  const { data: ambientLogs } = useCachedQuery(`cd-ambient:${site.id}`, () => fetchAmbientDisplay(site.id));
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, []);
 
   const slot = currentSlot();
   const statuses = useMemo(
@@ -63,12 +72,14 @@ export default function DashboardPage() {
   // Open counter batches past their date are a live problem, not a scheduled
   // check — they block "ready for service" until they're taken off.
   const counter = useMemo(() => summarise(openBatches(counterLogs ?? [])), [counterLogs]);
+  const sandwichGroups = useMemo(() => outNow(ambientLogs ?? [], now), [ambientLogs, now]);
+  const sandwiches = useMemo(() => summariseAmbient(sandwichGroups, fridgeReserve(ambientLogs ?? [])), [sandwichGroups, ambientLogs]);
 
   const fridgesDue = statuses.filter((s) => !s.done).length;
   const cleaningDue = cleaning.total > 0 && cleaning.done < cleaning.total;
   const anyOutOfRange = statuses.some((s) => s.inRange === false);
   const allCaughtUp =
-    statuses.length > 0 && fridgesDue === 0 && !cleaningDue && !anyOutOfRange && counter.overdue === 0;
+    statuses.length > 0 && fridgesDue === 0 && !cleaningDue && !anyOutOfRange && counter.overdue === 0 && sandwiches.overdue === 0;
 
   return (
     <div className="flex flex-col flex-1">
@@ -90,7 +101,7 @@ export default function DashboardPage() {
       <div className="flex-1 px-4 py-5 max-w-2xl w-full mx-auto space-y-7">
         <section className="rounded-2xl bg-ink text-paper px-5 py-4 shadow-sm">
           <div className="flex items-center justify-between gap-4">
-            <div><p className="text-xs uppercase tracking-[0.18em] text-paper/60 font-bold">Today&apos;s record</p><p className="mt-1 text-lg font-bold">{allCaughtUp ? "Ready for service" : `${fridgesDue + (cleaningDue ? 1 : 0) + (counter.overdue > 0 ? 1 : 0)} checks left`}</p></div>
+            <div><p className="text-xs uppercase tracking-[0.18em] text-paper/60 font-bold">Today&apos;s record</p><p className="mt-1 text-lg font-bold">{allCaughtUp ? "Ready for service" : `${fridgesDue + (cleaningDue ? 1 : 0) + (counter.overdue > 0 ? 1 : 0) + (sandwiches.overdue > 0 ? 1 : 0)} checks left`}</p></div>
             <span className="text-3xl" aria-hidden>{allCaughtUp ? "✓" : "◷"}</span>
           </div>
           {!allCaughtUp && <div className="mt-3 h-1.5 rounded-full bg-paper/20 overflow-hidden"><div className="h-full rounded-full bg-gold transition-all" style={{width:`${statuses.length ? Math.max(8,((statuses.length-fridgesDue)/statuses.length)*100) : 8}%`}} /></div>}
@@ -173,6 +184,36 @@ export default function DashboardPage() {
                 )}
               </Link>
             ))}
+
+            {(sandwiches.out > 0 || sandwiches.inFridge > 0) && (
+              <Link
+                href="/sandwiches"
+                className={`flex items-center justify-between rounded-2xl border px-4 py-3.5 active:scale-[0.99] transition-transform ${
+                  sandwiches.overdue > 0
+                    ? "bg-danger-soft border-danger/30"
+                    : sandwiches.soonestMsLeft !== null && sandwiches.soonestMsLeft <= 30 * 60 * 1000
+                      ? "bg-gold-soft border-gold/50"
+                      : "bg-surface border-line"
+                }`}
+              >
+                <p className="font-semibold text-ink">🥪 Sandwiches</p>
+                <p
+                  className={`text-sm font-semibold tabular-nums ${
+                    sandwiches.overdue > 0
+                      ? "text-danger"
+                      : sandwiches.soonestMsLeft !== null && sandwiches.soonestMsLeft <= 30 * 60 * 1000
+                        ? "text-gold-deep"
+                        : "text-brand"
+                  }`}
+                >
+                  {sandwiches.overdue > 0
+                    ? "⚠ over 4 hours — take off now"
+                    : sandwiches.out > 0 && sandwiches.soonestMsLeft !== null
+                      ? `${sandwiches.out} out · ${describeRemaining(sandwiches.soonestMsLeft)} · off by ${formatClock(sandwichGroups[0].offBy)}`
+                      : `${sandwiches.inFridge} in the fridge · nothing out`}
+                </p>
+              </Link>
+            )}
 
             {(counter.open > 0 || counter.overdue > 0) && (
               <Link

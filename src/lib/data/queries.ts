@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase/client";
 import type { CounterLog } from "@/lib/counter/board";
+import type { AmbientLog } from "@/lib/ambient/board";
 
 // Every fetcher is scoped to one site (shop). Callers pass the selected
 // site's id from useSite(); cache keys are suffixed with it too.
@@ -78,6 +79,7 @@ export type ActiveProduct = {
   may_contain: string[];
   notes: string | null;
   open_life_days: number;
+  category: "deli" | "sandwich";
 };
 
 // Products are the one config list shared by both shops (same range sold in
@@ -86,7 +88,7 @@ export type ActiveProduct = {
 export async function fetchActiveProducts(): Promise<ActiveProduct[]> {
   const { data, error } = await supabase
     .from("products")
-    .select("id, name, allergens, may_contain, notes, open_life_days")
+    .select("id, name, allergens, may_contain, notes, open_life_days, category")
     .eq("active", true)
     .order("name");
   if (error) throw error;
@@ -203,4 +205,22 @@ export async function fetchDeliveryLabels(ids: string[]): Promise<Map<string, st
     }
   }
   return labels;
+}
+
+// -- Sandwiches (ambient display) ----------------------------------------------
+
+// Since the start of yesterday: today's reserve and timers, plus anything
+// left out overnight (which shows as long overdue, as it should).
+export async function fetchAmbientDisplay(siteId: string): Promise<AmbientLog[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - 1);
+  since.setHours(0, 0, 0, 0);
+  const { data, error } = await supabase
+    .from("ambient_display_logs")
+    .select("id, client_id, staff_id, event, batch_client_id, product_id, product_name, quantity, off_by, outcome, note, recorded_at")
+    .eq("site_id", siteId)
+    .gte("recorded_at", since.toISOString())
+    .order("recorded_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
 }

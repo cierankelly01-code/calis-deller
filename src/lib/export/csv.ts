@@ -2,7 +2,9 @@ import { supabase } from "@/lib/supabase/client";
 import { fetchDeliveryLabels } from "@/lib/data/queries";
 import { escapeCell } from './csv-cell';
 import { REASONS } from "@/lib/counter/board";
+import { OUTCOMES } from "@/lib/ambient/board";
 import type {
+  AmbientDisplayLogRow,
   CleaningLogRow,
   CookingLogRow,
   CounterStockLogRow,
@@ -63,19 +65,20 @@ export async function buildExportCsv(siteId: string, fromDateStr: string, toDate
   const to = end.toISOString();
 
   // Name lookups include inactive rows so historic records still resolve.
-  const [fridge, cooking, deliveries, cleaning, probe, counter, staff, units, tasks] = await Promise.all([
+  const [fridge, cooking, deliveries, cleaning, probe, counter, ambient, staff, units, tasks] = await Promise.all([
     supabase.from("fridge_temp_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("cooking_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("delivery_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("cleaning_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("probe_calibration_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("counter_stock_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("ambient_display_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("staff").select("id, name").eq("site_id", siteId),
     supabase.from("fridge_units").select("id, name").eq("site_id", siteId),
     supabase.from("cleaning_tasks").select("id, name").eq("site_id", siteId),
   ]);
 
-  for (const result of [fridge, cooking, deliveries, cleaning, probe, counter, staff, units, tasks]) {
+  for (const result of [fridge, cooking, deliveries, cleaning, probe, counter, ambient, staff, units, tasks]) {
     if (result.error) throw result.error;
   }
 
@@ -194,6 +197,24 @@ export async function buildExportCsv(siteId: string, fromDateStr: string, toDate
       ]
         .filter(Boolean)
         .join(" · "),
+    });
+  }
+
+  for (const log of (ambient.data ?? []) as AmbientDisplayLogRow[]) {
+    rows.push({
+      recordedAt: log.recorded_at,
+      syncedAt: log.synced_at,
+      module: "Sandwiches (4-hour rule)",
+      item: `${log.product_name} × ${log.quantity}`,
+      reading:
+        log.event === "made"
+          ? "Made and chilled"
+          : log.event === "put_out"
+            ? `Put out at room temperature · off by ${log.off_by ? localTime(log.off_by) : "?"}`
+            : `Taken off · ${log.outcome ? OUTCOMES[log.outcome] : ""}`,
+      status: log.event === "made" ? "In fridge" : log.event === "put_out" ? "On counter" : log.outcome === "sold_out" ? "Sold out" : log.outcome === "chilled" ? "Chilled — not for re-display" : "Binned",
+      staffId: log.staff_id,
+      notes: log.note ?? "",
     });
   }
 

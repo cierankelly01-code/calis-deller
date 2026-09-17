@@ -6,6 +6,15 @@ self.addEventListener('activate', event => {
     keys.filter(key => key.startsWith('calis-deller-shell-') || (key.startsWith('food-log-assets-') && key !== CACHE_NAME)).map(key => caches.delete(key))
   )).then(() => self.clients.claim()));
 });
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(list => {
+    const open = list.find(client => 'focus' in client);
+    if (open) return open.focus().then(client => ('navigate' in client ? client.navigate(url) : client));
+    return self.clients.openWindow(url);
+  }));
+});
 self.addEventListener('fetch', event => {
   const request=event.request;
   const url=new URL(request.url);

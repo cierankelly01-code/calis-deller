@@ -115,7 +115,7 @@ export function openBatches(logs: CounterLog[], today: string = localDateStr(new
     const daysLeft = daysBetween(today, discardBy);
     batches.push({
       clientId: log.client_id,
-      productId: log.product_id,
+      productId: log.product_id ?? null,
       productName: log.product_name,
       unitId: log.unit_id,
       staffId: log.staff_id,

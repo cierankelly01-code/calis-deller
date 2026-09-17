@@ -118,7 +118,7 @@ export default function CounterBoardPage() {
         staff_id: staffId,
         event: "taken_off" as const,
         batch_client_id: batch.clientId,
-        product_id: batch.productId,
+        product_id: batch.productId ?? null,
         product_name: batch.productName,
         unit_id: batch.unitId,
         reason,

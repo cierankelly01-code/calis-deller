@@ -17,7 +17,7 @@ const tables={
   staff:[{id:staffId,site_id:siteId,name:'Test colleague',active:true,sort_order:1}],
   fridge_units:[{id:unitId,site_id:siteId,name:'Test fridge',unit_type:'fridge',target_min_c:1,target_max_c:5,active:true,sort_order:1}],
   cleaning_tasks:[{id:taskId,site_id:siteId,name:'Test worktops',session:'both',active:true,sort_order:1}],
-  suppliers:[],products:[],fridge_temp_logs:[],cooking_logs:[],delivery_logs:[],cleaning_logs:[],probe_calibration_logs:[],counter_stock_logs:[],
+  suppliers:[],products:[],fridge_temp_logs:[],cooking_logs:[],delivery_logs:[],cleaning_logs:[],probe_calibration_logs:[],counter_stock_logs:[],ambient_display_logs:[],
 };
 function sessionFor(role) {
   const id=role==='manager'?'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa':'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -67,6 +67,7 @@ globalThis.fetch=async(input,init={})=>{
     if(data.client_id && rows.some(row=>row.client_id===data.client_id))return Response.json({code:'23505'},{status:409});
     // Mirrors the stamp trigger: the bin-by date is server-derived (open
     // life counts the day opened; a sooner pack use-by wins).
+    if(table==='ambient_display_logs'&&data.event==='put_out')data.off_by=new Date(Date.parse(data.recorded_at)+4*3600*1000).toISOString();
     if(table==='counter_stock_logs'&&data.event==='put_out'){const d=new Date(data.recorded_at);d.setDate(d.getDate()+data.open_life_days-1);const byLife=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;data.discard_by=data.pack_use_by&&data.pack_use_by<byLife?data.pack_use_by:byLife;}
     rows.push({id:randomUUID(),active:true,sort_order:0,allergens:[],may_contain:[],site_id:tables.staff.find(s=>s.id===data.staff_id)?.site_id,created_at:new Date().toISOString(),synced_at:new Date().toISOString(),...data,authenticated_user_id:user.id});
     return new Response(null,{status:201});

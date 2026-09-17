@@ -1,6 +1,6 @@
 export type AppRole = 'staff' | 'manager';
 export const configTables = ['sites', 'staff', 'fridge_units', 'suppliers', 'products', 'cleaning_tasks'];
-export const logTables = ['fridge_temp_logs', 'cooking_logs', 'delivery_logs', 'cleaning_logs', 'probe_calibration_logs', 'counter_stock_logs'];
+export const logTables = ['fridge_temp_logs', 'cooking_logs', 'delivery_logs', 'cleaning_logs', 'probe_calibration_logs', 'counter_stock_logs', 'ambient_display_logs'];
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function canAccess(role: unknown, table: string, method: string): boolean {
@@ -32,13 +32,14 @@ const fields: Record<string, Record<string, Rule>> = {
   staff:base, suppliers:base,
   fridge_units:{...base,unit_type:oneOf('fridge','freezer'),target_min_c:temp,target_max_c:temp},
   // Products are shared by both shops: no site_id is accepted, so a row can never be pinned to one store.
-  products:{name:base.name,active:boolean,allergens:allergenList,may_contain:allergenList,notes:note,open_life_days:integer(1,90),updated_at:timestamp},
+  products:{name:base.name,active:boolean,allergens:allergenList,may_contain:allergenList,notes:note,open_life_days:integer(1,90),category:oneOf('deli','sandwich'),updated_at:timestamp},
   cleaning_tasks:{...base,session:oneOf('open','close','both')},
   fridge_temp_logs:{...log,unit_id:uuid,period:oneOf('am','mid','pm','other'),reading_c:temp,in_range:boolean,corrective_action:note},
   cooking_logs:{...log,check_type:oneOf('cooking','reheating','hot_hold'),product_id:optional(uuid),product_name:text(200,true),quantity:integer(1,10000),temp_c:temp,in_range:boolean,corrective_action:note},
   delivery_logs:{...log,supplier_id:optional(uuid),supplier_name:text(200,true),vehicle_temp_c:optional(temp),chilled_temp_c:optional(temp),frozen_temp_c:optional(temp),packaging_ok:boolean,in_date_ok:boolean,accepted:boolean,rejection_reason:note,notes:note},
   cleaning_logs:{...log,task_id:uuid,session:oneOf('open','close'),note},
   probe_calibration_logs:{...log,method:oneOf('ice','boiling'),reading_c:temp,pass:boolean,corrective_action:note},
+  ambient_display_logs:{...log,event:oneOf('made','put_out','taken_off'),batch_client_id:optional(uuid),product_id:optional(uuid),product_name:text(200,true),quantity:integer(0,1000),outcome:optional(oneOf('sold_out','chilled','binned')),note},
   counter_stock_logs:{...log,event:oneOf('put_out','taken_off'),batch_client_id:optional(uuid),product_id:optional(uuid),product_name:text(200,true),unit_id:uuid,open_life_days:optional(integer(1,90)),pack_use_by:optional(date),batch_code:optional(text(200)),delivery_log_id:optional(uuid),reason:optional(oneOf('sold_out','end_of_life','quality','other')),note},
 };
 // Log rows carry no site_id: the database derives it from the staff member.
@@ -50,6 +51,7 @@ const required: Record<string,string[]> = {
   cooking_logs:['product_name','temp_c','in_range'],delivery_logs:['supplier_name','accepted'],
   cleaning_logs:['task_id','session'],probe_calibration_logs:['method','reading_c','pass'],
   counter_stock_logs:['event','product_name','unit_id'],
+  ambient_display_logs:['event','product_name','quantity'],
 };
 
 export function validateWrite(table: string, method: string, input: unknown): Record<string,unknown> {
@@ -67,6 +69,10 @@ export function validateWrite(table: string, method: string, input: unknown): Re
   }
   if (table === 'fridge_units' && typeof result.target_min_c === 'number' && typeof result.target_max_c === 'number' && result.target_min_c >= result.target_max_c) throw new Error('Invalid temperature band');
   if (table === 'cooking_logs' && result.quantity === 0) throw new Error('Invalid quantity');
+  if (table === 'ambient_display_logs' && method === 'POST') {
+    const takenOff = result.event === 'taken_off';
+    if (takenOff ? (typeof result.batch_client_id !== 'string' || typeof result.outcome !== 'string') : (result.batch_client_id != null || result.outcome != null || result.quantity === 0)) throw new Error('Invalid entry');
+  }
   if (table === 'counter_stock_logs' && method === 'POST') {
     // Mirrors the database's event-shape constraint so a malformed entry is
     // refused on the device instead of sitting stuck in the outbox.

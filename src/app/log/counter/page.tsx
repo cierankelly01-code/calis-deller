@@ -52,7 +52,9 @@ function readStoredUnit(): string | null {
 export default function CounterPutOutPage() {
   const { site } = useSite();
   const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
-  const { data: products } = useCachedQuery("cd-products", fetchActiveProducts);
+  const { data: allProducts } = useCachedQuery("cd-products", fetchActiveProducts);
+  // Sandwiches have their own screen (four-hour rule); the counter list is everything else.
+  const products = useMemo(() => (allProducts ?? []).filter((p) => p.category !== "sandwich"), [allProducts]);
   const { data: units } = useCachedQuery(`cd-fridge-units:${site.id}`, () => fetchActiveFridgeUnits(site.id));
   const { data: stockLogs } = useCachedQuery(`cd-counter-stock:${site.id}`, () => fetchCounterStock(site.id));
   const { data: deliveries } = useCachedQuery(`cd-recent-deliveries:${site.id}`, () => fetchRecentDeliveries(site.id));
