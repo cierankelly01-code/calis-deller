@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase/client";
 import type { CounterLog } from "@/lib/counter/board";
 import type { AmbientLog } from "@/lib/ambient/board";
+import type { StockLog } from "@/lib/stock/ledger";
+import type { StockUnit } from "@/types/database";
 
 // Every fetcher is scoped to one site (shop). Callers pass the selected
 // site's id from useSite(); cache keys are suffixed with it too.
@@ -221,6 +223,90 @@ export async function fetchAmbientDisplay(siteId: string): Promise<AmbientLog[]>
     .eq("site_id", siteId)
     .gte("recorded_at", since.toISOString())
     .order("recorded_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+// -- Stock tracker ----------------------------------------------------------------
+
+export type StockLine = {
+  id: string;
+  product_id: string;
+  unit: StockUnit;
+  cost_price: number | null;
+  sell_price: number | null;
+  active: boolean;
+  sort_order: number;
+};
+
+// Shared by both shops, like the products they price. Inactive lines are
+// included so Settings can switch one back on without losing its prices.
+export async function fetchStockLines(): Promise<StockLine[]> {
+  const { data, error } = await supabase
+    .from("stock_lines")
+    .select("id, product_id, unit, cost_price, sell_price, active, sort_order")
+    .order("sort_order");
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    ...row,
+    cost_price: row.cost_price == null ? null : Number(row.cost_price),
+    sell_price: row.sell_price == null ? null : Number(row.sell_price),
+  }));
+}
+
+const qty = (v: number | null) => (v == null ? null : Number(v));
+
+// A few months of counts is ~30 lines × 90 nights: more than one page of the
+// API's row cap, so this pages through until a short page comes back.
+export async function fetchStockLogs(siteId: string, days = 70): Promise<StockLog[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  since.setHours(0, 0, 0, 0);
+  const rows: StockLog[] = [];
+  const page = 1000;
+  for (let from = 0; ; from += page) {
+    const { data, error } = await supabase
+      .from("stock_logs")
+      .select("id, client_id, staff_id, event, product_id, product_name, unit, came_in, binned, on_hand, tags, note, business_date, recorded_at")
+      .eq("site_id", siteId)
+      .gte("recorded_at", since.toISOString())
+      .order("recorded_at", { ascending: false })
+      .range(from, from + page - 1);
+    if (error) throw error;
+    for (const row of data ?? []) rows.push({ ...row, came_in: qty(row.came_in), binned: qty(row.binned), on_hand: qty(row.on_hand), tags: row.tags ?? [] });
+    if ((data ?? []).length < page) break;
+  }
+  return rows;
+}
+
+export type DeliverySpendRow = { supplier_name: string; invoice_total: number | null; recorded_at: string; accepted: boolean };
+
+export async function fetchDeliverySpend(siteId: string, days = 70): Promise<DeliverySpendRow[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  since.setHours(0, 0, 0, 0);
+  const { data, error } = await supabase
+    .from("delivery_logs")
+    .select("supplier_name, invoice_total, recorded_at, accepted")
+    .eq("site_id", siteId)
+    .gte("recorded_at", since.toISOString())
+    .order("recorded_at", { ascending: false })
+    .limit(1000);
+  if (error) throw error;
+  return (data ?? []).map((row) => ({ ...row, invoice_total: row.invoice_total == null ? null : Number(row.invoice_total) }));
+}
+
+// Sandwich log since a given day: the close count pre-fills "came in" with
+// what was made and "binned" with what came off the counter into the bin.
+export async function fetchAmbientSince(siteId: string, sinceDay: string): Promise<AmbientLog[]> {
+  const since = new Date(`${sinceDay}T00:00:00`);
+  const { data, error } = await supabase
+    .from("ambient_display_logs")
+    .select("id, client_id, staff_id, event, batch_client_id, product_id, product_name, quantity, display_minutes, off_by, outcome, note, recorded_at")
+    .eq("site_id", siteId)
+    .gte("recorded_at", since.toISOString())
+    .order("recorded_at", { ascending: false })
+    .limit(1000);
   if (error) throw error;
   return data ?? [];
 }

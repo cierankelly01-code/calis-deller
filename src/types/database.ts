@@ -1,4 +1,4 @@
-// Hand-written to match supabase/migrations/ (0001 → 20260916 counter stock).
+// Hand-written to match supabase/migrations/ (0001 → 20260930 stock tracker).
 // Once a live Supabase project exists, regenerate with:
 //   npx supabase gen types typescript --project-id <id> > src/types/database.ts
 // and re-apply this file's structure/comments if the generator overwrites them.
@@ -106,6 +106,7 @@ export type DeliveryLogRow = {
   accepted: boolean;
   rejection_reason: string | null;
   notes: string | null;
+  invoice_total: number | null; // £ off the invoice, for weekly spend per supplier
   recorded_at: string;
   synced_at: string;
   corrects_entry_id: string | null;
@@ -194,6 +195,42 @@ export type AmbientDisplayLogRow = {
   created_by_device: string | null;
 };
 
+export type StockUnit = "each" | "kg";
+
+// One row per tracked product, shared by both shops (see 20260930100000).
+export type StockLineRow = {
+  id: string;
+  product_id: string;
+  unit: StockUnit;
+  cost_price: number | null; // £ per unit (per item, or per kg)
+  sell_price: number | null; // £ per unit
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StockLogRow = {
+  id: string;
+  site_id: string;
+  client_id: string;
+  staff_id: string;
+  event: "count" | "sold_out" | "day_note";
+  product_id: string | null;
+  product_name: string | null; // null only on a day_note
+  unit: StockUnit | null; // count only
+  came_in: number | null; // count: since the last count
+  binned: number | null; // count: since the last count
+  on_hand: number | null; // count: left now
+  tags: string[]; // day_note
+  note: string | null;
+  business_date: string | null; // YYYY-MM-DD, server-derived (null while queued on the device)
+  recorded_at: string;
+  synced_at: string;
+  corrects_entry_id: string | null;
+  created_by_device: string | null;
+};
+
 // supabase-js v2 requires each table to carry a Relationships array and the
 // schema to declare Views/Functions — without them the schema fails its
 // GenericSchema constraint and every Insert/Update degrades to `never`.
@@ -241,6 +278,8 @@ export type Database = {
         AmbientDisplayLogRow,
         "client_id" | "staff_id" | "event" | "product_name" | "quantity" | "recorded_at"
       >;
+      stock_lines: TableDef<StockLineRow, "product_id">;
+      stock_logs: TableDef<StockLogRow, "client_id" | "staff_id" | "event" | "recorded_at">;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

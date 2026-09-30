@@ -15,7 +15,8 @@ export type OutboxTable =
   | "cleaning_logs"
   | "probe_calibration_logs"
   | "counter_stock_logs"
-  | "ambient_display_logs";
+  | "ambient_display_logs"
+  | "stock_logs";
 
 export type OutboxEntry = {
   clientId: string; // matches the row's client_id column; used for idempotent upsert

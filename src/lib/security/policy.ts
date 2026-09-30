@@ -1,6 +1,6 @@
 export type AppRole = 'staff' | 'manager';
-export const configTables = ['sites', 'staff', 'fridge_units', 'suppliers', 'products', 'cleaning_tasks'];
-export const logTables = ['fridge_temp_logs', 'cooking_logs', 'delivery_logs', 'cleaning_logs', 'probe_calibration_logs', 'counter_stock_logs', 'ambient_display_logs'];
+export const configTables = ['sites', 'staff', 'fridge_units', 'suppliers', 'products', 'cleaning_tasks', 'stock_lines'];
+export const logTables = ['fridge_temp_logs', 'cooking_logs', 'delivery_logs', 'cleaning_logs', 'probe_calibration_logs', 'counter_stock_logs', 'ambient_display_logs', 'stock_logs'];
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function canAccess(role: unknown, table: string, method: string): boolean {
@@ -27,6 +27,10 @@ const base = {name:text(200,true),active:boolean,sort_order:integer(0,100000),si
 const log = {client_id:uuid,staff_id:uuid,recorded_at:timestamp,corrects_entry_id:optional(uuid),created_by_device:optional(text(200))};
 const temp = number(-100,300);
 const note = optional(text(2000));
+const money = number(0,10000);
+const amount = number(0,100000); // stock quantities: items, or kg to the gram
+export const STOCK_TAGS = ['sunny','hot','rain','cold','busy','quiet','event','bank_holiday','school_holidays','short_staffed','closed_early'];
+const tagList: Rule = v => Array.isArray(v) && v.length <= STOCK_TAGS.length && v.every(oneOf(...STOCK_TAGS)) && new Set(v).size === v.length;
 const fields: Record<string, Record<string, Rule>> = {
   sites:{name:text(200,true),short_name:text(60,true),slug:v=>typeof v==='string'&&/^[a-z0-9-]{1,60}$/.test(v),active:boolean,sort_order:integer(0,100000)},
   staff:base, suppliers:base,
@@ -36,10 +40,13 @@ const fields: Record<string, Record<string, Rule>> = {
   cleaning_tasks:{...base,session:oneOf('open','close','both')},
   fridge_temp_logs:{...log,unit_id:uuid,period:oneOf('am','mid','pm','other'),reading_c:temp,in_range:boolean,corrective_action:note},
   cooking_logs:{...log,check_type:oneOf('cooking','reheating','hot_hold'),product_id:optional(uuid),product_name:text(200,true),quantity:integer(1,10000),temp_c:temp,in_range:boolean,corrective_action:note},
-  delivery_logs:{...log,supplier_id:optional(uuid),supplier_name:text(200,true),vehicle_temp_c:optional(temp),chilled_temp_c:optional(temp),frozen_temp_c:optional(temp),packaging_ok:boolean,in_date_ok:boolean,accepted:boolean,rejection_reason:note,notes:note},
+  delivery_logs:{...log,supplier_id:optional(uuid),supplier_name:text(200,true),vehicle_temp_c:optional(temp),chilled_temp_c:optional(temp),frozen_temp_c:optional(temp),packaging_ok:boolean,in_date_ok:boolean,accepted:boolean,rejection_reason:note,notes:note,invoice_total:optional(number(0,100000))},
   cleaning_logs:{...log,task_id:uuid,session:oneOf('open','close'),note},
   probe_calibration_logs:{...log,method:oneOf('ice','boiling'),reading_c:temp,pass:boolean,corrective_action:note},
   ambient_display_logs:{...log,event:oneOf('made','put_out','taken_off'),batch_client_id:optional(uuid),product_id:optional(uuid),product_name:text(200,true),quantity:integer(0,1000),display_minutes:optional(integer(30,240)),outcome:optional(oneOf('sold_out','chilled','binned')),note},
+  // Stock prices are shared by both shops, like the products they belong to.
+  stock_lines:{product_id:uuid,unit:oneOf('each','kg'),cost_price:optional(money),sell_price:optional(money),active:boolean,sort_order:base.sort_order,updated_at:timestamp},
+  stock_logs:{...log,event:oneOf('count','sold_out','day_note'),product_id:optional(uuid),product_name:optional(text(200,true)),unit:optional(oneOf('each','kg')),came_in:optional(amount),binned:optional(amount),on_hand:optional(amount),tags:tagList,note},
   counter_stock_logs:{...log,event:oneOf('put_out','taken_off'),batch_client_id:optional(uuid),product_id:optional(uuid),product_name:text(200,true),unit_id:uuid,open_life_days:optional(integer(1,90)),pack_use_by:optional(date),batch_code:optional(text(200)),delivery_log_id:optional(uuid),reason:optional(oneOf('sold_out','end_of_life','quality','other')),note},
 };
 // Log rows carry no site_id: the database derives it from the staff member.
@@ -52,6 +59,7 @@ const required: Record<string,string[]> = {
   cleaning_logs:['task_id','session'],probe_calibration_logs:['method','reading_c','pass'],
   counter_stock_logs:['event','product_name','unit_id'],
   ambient_display_logs:['event','product_name','quantity'],
+  stock_lines:['product_id'],stock_logs:['event'],
 };
 
 export function validateWrite(table: string, method: string, input: unknown): Record<string,unknown> {
@@ -80,6 +88,16 @@ export function validateWrite(table: string, method: string, input: unknown): Re
     const putOut = result.event === 'put_out';
     if (putOut ? (result.batch_client_id != null || result.reason != null || typeof result.open_life_days !== 'number') : (typeof result.batch_client_id !== 'string' || typeof result.reason !== 'string' || result.open_life_days != null || result.pack_use_by != null || result.delivery_log_id != null)) throw new Error('Invalid entry');
     if (result.reason === 'other' && !(typeof result.note === 'string' && result.note.length > 0)) throw new Error('Say what happened');
+  }
+  if (table === 'stock_logs' && method === 'POST') {
+    // Mirrors the database's event-shape constraint (see 20260930100000).
+    const has = (k: string) => result[k] != null;
+    const quantities = ['came_in','binned','on_hand'];
+    const tags = Array.isArray(result.tags) ? result.tags.length : 0;
+    const shaped = result.event === 'count' ? has('product_name') && has('unit') && quantities.every(has) && tags === 0
+      : result.event === 'sold_out' ? has('product_name') && !has('unit') && !quantities.some(has) && tags === 0
+      : !has('product_id') && !has('product_name') && !has('unit') && !quantities.some(has) && (tags > 0 || (typeof result.note === 'string' && result.note.length > 0));
+    if (!shaped) throw new Error('Invalid entry');
   }
   if (result.recorded_at && Date.parse(String(result.recorded_at)) > Date.now() + 300000) throw new Error('Check device time');
   return result;

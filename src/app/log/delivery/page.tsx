@@ -13,6 +13,7 @@ import { fetchActiveStaff, fetchActiveSuppliers } from "@/lib/data/queries";
 import { useRememberedStaff } from "@/lib/staffMemory";
 import { queueEntry } from "@/lib/offline/outbox";
 import { syncOutbox } from "@/lib/offline/sync";
+import { parseAmount } from "@/lib/stock/lines";
 
 // SFBB delivery check: probe chilled goods (accept ≤5°C, reject >8°C),
 // frozen goods should be ≤ -18°C, packaging intact, dates in range.
@@ -81,6 +82,7 @@ export default function DeliveryLogPage() {
   const [accepted, setAccepted] = useState(true);
   const [rejectionReason, setRejectionReason] = useState("");
   const [notes, setNotes] = useState("");
+  const [invoice, setInvoice] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showSaved, setShowSaved] = useState(false);
@@ -95,8 +97,13 @@ export default function DeliveryLogPage() {
   const chilledCaution = chilledTemp !== null && chilledTemp > 5 && chilledTemp <= 8;
   const frozenWarning = frozenTemp !== null && frozenTemp > -18;
 
+  // Optional: the £ total off the invoice, for weekly spend in the stock tracker.
+  const invoiceTotal = invoice.trim() === "" ? null : parseAmount(invoice);
+  const invoiceInvalid = invoice.trim() !== "" && (invoiceTotal == null || invoiceTotal > 100000);
+
   const canSave =
     staffId !== null &&
+    !invoiceInvalid &&
     supplierName.trim().length > 0 &&
     (accepted || rejectionReason.trim().length > 0) &&
     !saving;
@@ -105,6 +112,7 @@ export default function DeliveryLogPage() {
     ? (staff ?? []).length === 0 ? "No staff names set up yet — a manager adds them in Settings › Staff" : "Tap who's receiving the delivery first"
     : supplierName.trim().length === 0 ? "Pick or type the supplier"
     : !accepted && rejectionReason.trim().length === 0 ? "Rejected — give the reason"
+    : invoiceInvalid ? "The invoice total should be an amount, like 125.00"
     : null;
 
   function pickSupplier(id: string, name: string) {
@@ -134,6 +142,9 @@ export default function DeliveryLogPage() {
         accepted,
         rejection_reason: !accepted ? rejectionReason.trim() : null,
         notes: notes.trim() || null,
+        // Only sent when filled in, so delivery checks keep saving on a
+        // database that hasn't had the stock-tracker migration yet.
+        ...(invoiceTotal != null && { invoice_total: Math.round(invoiceTotal * 100) / 100 }),
         recorded_at: new Date().toISOString(),
       });
       void syncOutbox().catch(() => {});
@@ -263,6 +274,25 @@ export default function DeliveryLogPage() {
             />
           </section>
         )}
+
+        <section>
+          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+            Invoice total (optional)
+          </h2>
+          <label className="flex items-center h-12 rounded-2xl border border-line bg-surface px-4 focus-within:border-brand">
+            <span className="text-ink-soft mr-1.5">£</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={invoice}
+              onChange={(e) => setInvoice(e.target.value)}
+              placeholder="e.g. 125.00"
+              aria-label="Invoice total in pounds"
+              className="w-full bg-transparent text-base tabular-nums placeholder:text-ink-faint focus:outline-none"
+            />
+          </label>
+          <p className="mt-1.5 text-sm text-ink-soft">Goes into the weekly stock figures as spend with this supplier.</p>
+        </section>
 
         <section>
           <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">

@@ -26,6 +26,7 @@ const LOG_TILES = [
   { href: "/log/probe", emoji: "🌡️", title: "Probe check", sub: "Weekly calibration" },
   { href: "/counter", emoji: "🥩", title: "Counter stock", sub: "Put out · take off · dates" },
   { href: "/sandwiches", emoji: "🥪", title: "Sandwiches", sub: "Counter timer · fridge reserve" },
+  { href: "/stock", emoji: "📦", title: "Stock", sub: "Close count · sold out · week" },
   { href: "/diary", emoji: "📖", title: "Diary", sub: "Any day's records" },
 ] as const;
 

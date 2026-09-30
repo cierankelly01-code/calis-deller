@@ -8,6 +8,7 @@ const SECTIONS = [
   { href: "/settings/staff", emoji: "👥", title: "Staff", sub: "Who appears on the name picker" },
   { href: "/settings/cleaning", emoji: "🧽", title: "Cleaning tasks", sub: "Opening & closing checklists" },
   { href: "/settings/suppliers", emoji: "🚚", title: "Suppliers", sub: "Quick-pick list on delivery checks" },
+  { href: "/settings/stock", emoji: "📦", title: "Stock list & prices", sub: "What the close count covers, cost and sell prices" },
   { href: "/allergens", emoji: "⚠️", title: "Products, allergens & sandwiches", sub: "Managed in the Allergen Guide — shared by both shops" },
 ];
 
