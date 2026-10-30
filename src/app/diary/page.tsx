@@ -15,8 +15,11 @@ import type {
   CounterStockLogRow,
   DeliveryLogRow,
   FridgeTempLogRow,
+  HotBatchLogRow,
   ProbeCalibrationLogRow,
+  SiteCheckLogRow,
 } from "@/types/database";
+import { COOLING_OUTCOMES, lateFinishes } from "@/lib/cooling/board";
 
 // The inspection page: pick any date and see every record made that day,
 // exactly what an EHO flicks through the paper diary for. Lookups include
@@ -30,6 +33,8 @@ type DayData = {
   probe: ProbeCalibrationLogRow[];
   counter: CounterStockLogRow[];
   ambient: AmbientDisplayLogRow[];
+  hot: HotBatchLogRow[];
+  checks: SiteCheckLogRow[];
   deliveryLabels: Map<string, string>; // delivery id → "Supplier · date", for linked counter batches
   staffNames: Map<string, string>;
   unitNames: Map<string, string>;
@@ -54,7 +59,7 @@ async function fetchDay(siteId: string, dateStr: string): Promise<DayData> {
   const from = start.toISOString();
   const to = end.toISOString();
 
-  const [fridge, cooking, deliveries, cleaning, probe, counter, ambient, staff, units, tasks] = await Promise.all([
+  const [fridge, cooking, deliveries, cleaning, probe, counter, ambient, hot, checks, staff, units, tasks] = await Promise.all([
     supabase.from("fridge_temp_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("cooking_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("delivery_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
@@ -62,12 +67,14 @@ async function fetchDay(siteId: string, dateStr: string): Promise<DayData> {
     supabase.from("probe_calibration_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("counter_stock_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("ambient_display_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("hot_batch_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("site_check_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("staff").select("id, name").eq("site_id", siteId),
     supabase.from("fridge_units").select("id, name").eq("site_id", siteId),
     supabase.from("cleaning_tasks").select("id, name").eq("site_id", siteId),
   ]);
 
-  for (const result of [fridge, cooking, deliveries, cleaning, probe, counter, ambient, staff, units, tasks]) {
+  for (const result of [fridge, cooking, deliveries, cleaning, probe, counter, ambient, hot, checks, staff, units, tasks]) {
     if (result.error) throw result.error;
   }
 
@@ -88,6 +95,8 @@ async function fetchDay(siteId: string, dateStr: string): Promise<DayData> {
     probe: probe.data ?? [],
     counter: counter.data ?? [],
     ambient: ambient.data ?? [],
+    hot: hot.data ?? [],
+    checks: checks.data ?? [],
     deliveryLabels,
     staffNames: toMap(staff.data),
     unitNames: toMap(units.data),
@@ -410,6 +419,27 @@ export default function DiaryPage() {
                   {log.corrective_action && (
                     <span className="block mt-1 text-danger">Action: {log.corrective_action}</span>
                   )}
+                </Row>
+              ))}
+            </Section>
+
+            <Section title="⏱ Cooling clock (2 hours)" count={data.hot.length}>
+              {data.hot.map((log, _i, all) => (
+                <Row key={log.id} flag={lateFinishes(all).has(log.id)}>
+                  <span className="font-semibold">{log.product_name}</span> —{" "}
+                  {log.event === "out" ? `out of the oven, ${log.quantity}${log.due_by ? `, by ${formatTime(log.due_by)}` : ""}` : log.event === "probe" ? `probed ${log.temp_c}°C` : `${COOLING_OUTCOMES[log.outcome!].toLowerCase()}${log.outcome === "sold_out" ? "" : ` (${log.quantity})`}${log.temp_c != null ? ` at ${log.temp_c}°C` : ""}`}{" "}
+                  · {formatTime(log.recorded_at)} · {staffName(log.staff_id)}
+                  {lateFinishes(all).has(log.id) && <span className="block mt-1 text-danger">AFTER the 2 hours</span>}
+                </Row>
+              ))}
+            </Section>
+
+            <Section title="🧼 Hand sink, pest and repair checks" count={data.checks.length}>
+              {data.checks.map((log) => (
+                <Row key={log.id} flag={!log.ok}>
+                  <span className="font-semibold">{log.kind === "hand_wash" ? "Hand sink" : log.kind === "pest" ? "Pests" : "Repairs"}</span> —{" "}
+                  {log.ok ? "OK ✓" : "PROBLEM"} · {formatTime(log.recorded_at)} · {staffName(log.staff_id)}
+                  {log.corrective_action && <span className="block mt-1 text-danger">Action: {log.corrective_action}</span>}
                 </Row>
               ))}
             </Section>

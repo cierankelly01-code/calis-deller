@@ -16,7 +16,13 @@ export type OutboxTable =
   | "probe_calibration_logs"
   | "counter_stock_logs"
   | "ambient_display_logs"
-  | "stock_logs";
+  | "stock_logs"
+  | "hot_batch_logs"
+  | "method_records"
+  | "training_records"
+  | "health_logs"
+  | "review_logs"
+  | "site_check_logs";
 
 export type OutboxEntry = {
   clientId: string; // matches the row's client_id column; used for idempotent upsert
@@ -80,6 +86,15 @@ export async function markSynced(clientId: string): Promise<void> {
   if (entry) {
     await db.put("outbox", { ...entry, synced: true });
   }
+}
+
+// Personal data (training, sickness) must not stay on a shared iPad: once
+// it has reached the server its queued copy is deleted, not just flagged.
+export const PRIVATE_TABLES: OutboxTable[] = ["training_records", "health_logs"];
+
+export async function removeEntry(clientId: string): Promise<void> {
+  const db = await getDb();
+  await db.delete("outbox", clientId);
 }
 
 export async function getUnsyncedCount(): Promise<number> {

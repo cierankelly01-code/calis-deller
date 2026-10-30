@@ -10,8 +10,11 @@ import type {
   CounterStockLogRow,
   DeliveryLogRow,
   FridgeTempLogRow,
+  HotBatchLogRow,
   ProbeCalibrationLogRow,
+  SiteCheckLogRow,
 } from "@/types/database";
+import { COOLING_OUTCOMES, lateFinishes } from "@/lib/cooling/board";
 
 // EHO export: every record in a date range, flattened into one
 // spreadsheet-friendly table sorted chronologically. Columns are unified
@@ -65,7 +68,7 @@ export async function buildExportCsv(siteId: string, fromDateStr: string, toDate
   const to = end.toISOString();
 
   // Name lookups include inactive rows so historic records still resolve.
-  const [fridge, cooking, deliveries, cleaning, probe, counter, ambient, staff, units, tasks] = await Promise.all([
+  const [fridge, cooking, deliveries, cleaning, probe, counter, ambient, hot, checks, staff, units, tasks] = await Promise.all([
     supabase.from("fridge_temp_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("cooking_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("delivery_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
@@ -73,12 +76,14 @@ export async function buildExportCsv(siteId: string, fromDateStr: string, toDate
     supabase.from("probe_calibration_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("counter_stock_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("ambient_display_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("hot_batch_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
+    supabase.from("site_check_logs").select("*").eq("site_id", siteId).gte("recorded_at", from).lt("recorded_at", to).order("recorded_at"),
     supabase.from("staff").select("id, name").eq("site_id", siteId),
     supabase.from("fridge_units").select("id, name").eq("site_id", siteId),
     supabase.from("cleaning_tasks").select("id, name").eq("site_id", siteId),
   ]);
 
-  for (const result of [fridge, cooking, deliveries, cleaning, probe, counter, ambient, staff, units, tasks]) {
+  for (const result of [fridge, cooking, deliveries, cleaning, probe, counter, ambient, hot, checks, staff, units, tasks]) {
     if (result.error) throw result.error;
   }
 
@@ -215,6 +220,33 @@ export async function buildExportCsv(siteId: string, fromDateStr: string, toDate
       status: log.event === "made" ? "In fridge" : log.event === "put_out" ? "On counter" : log.outcome === "sold_out" ? "Sold out" : log.outcome === "chilled" ? "Chilled — not for re-display" : "Binned",
       staffId: log.staff_id,
       notes: log.note ?? "",
+    });
+  }
+
+  const lateHot = lateFinishes((hot.data ?? []) as HotBatchLogRow[]);
+  for (const log of (hot.data ?? []) as HotBatchLogRow[]) {
+    rows.push({
+      recordedAt: log.recorded_at,
+      syncedAt: log.synced_at,
+      module: "Cooling clock (2 hours)",
+      item: log.quantity != null ? `${log.product_name} × ${log.quantity}` : log.product_name,
+      reading: log.event === "out" ? `Out of the oven · chill, sell or bin by ${log.due_by ? localTime(log.due_by) : "?"}` : log.event === "probe" ? `${log.temp_c}°C while cooling` : `${COOLING_OUTCOMES[log.outcome!]}${log.temp_c != null ? ` at ${log.temp_c}°C` : ""}`,
+      status: log.event === "out" ? "Cooling" : log.event === "probe" ? "Probed" : lateHot.has(log.id) ? `LATE: ${COOLING_OUTCOMES[log.outcome!]} after the 2 hours` : COOLING_OUTCOMES[log.outcome!],
+      staffId: log.staff_id,
+      notes: log.note ?? "",
+    });
+  }
+
+  for (const log of (checks.data ?? []) as SiteCheckLogRow[]) {
+    rows.push({
+      recordedAt: log.recorded_at,
+      syncedAt: log.synced_at,
+      module: log.kind === "hand_wash" ? "Hand sink check" : log.kind === "pest" ? "Pest check" : "Repairs check",
+      item: "",
+      reading: "",
+      status: log.ok ? "OK" : "PROBLEM",
+      staffId: log.staff_id,
+      notes: log.corrective_action ?? "",
     });
   }
 

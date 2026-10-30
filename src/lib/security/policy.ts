@@ -1,13 +1,19 @@
 export type AppRole = 'staff' | 'manager';
-export const configTables = ['sites', 'staff', 'fridge_units', 'suppliers', 'products', 'cleaning_tasks', 'stock_lines'];
-export const logTables = ['fridge_temp_logs', 'cooking_logs', 'delivery_logs', 'cleaning_logs', 'probe_calibration_logs', 'counter_stock_logs', 'ambient_display_logs', 'stock_logs'];
+export const configTables = ['sites', 'staff', 'fridge_units', 'suppliers', 'products', 'cleaning_tasks', 'stock_lines', 'food_log_contacts'];
+export const logTables = ['fridge_temp_logs', 'cooking_logs', 'delivery_logs', 'cleaning_logs', 'probe_calibration_logs', 'counter_stock_logs', 'ambient_display_logs', 'stock_logs', 'hot_batch_logs', 'method_records', 'training_records', 'health_logs', 'review_logs', 'site_check_logs'];
+// Personal data: training (certificates) and health records are for managers
+// only, to read and to write. Signing off methods and reviews is a manager's job.
+export const managerReadTables = ['training_records', 'health_logs'];
+export const managerWriteTables = ['method_records', 'training_records', 'health_logs', 'review_logs'];
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const CERTIFICATE_PATH = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp|pdf)$/;
+export const REVIEW_CHANGES = ['staff','suppliers','menu','equipment','chemicals','methods','premises'];
 
 export function canAccess(role: unknown, table: string, method: string): boolean {
   if (role !== 'staff' && role !== 'manager') return false;
   if (![...configTables, ...logTables].includes(table)) return false;
-  if (method === 'GET') return true;
-  if (method === 'POST') return logTables.includes(table) || role === 'manager';
+  if (method === 'GET') return role === 'manager' || !managerReadTables.includes(table);
+  if (method === 'POST') return logTables.includes(table) ? role === 'manager' || !managerWriteTables.includes(table) : role === 'manager';
   return method === 'PATCH' && configTables.includes(table) && role === 'manager';
 }
 
@@ -48,6 +54,13 @@ const fields: Record<string, Record<string, Rule>> = {
   stock_lines:{product_id:uuid,unit:oneOf('each','kg'),cost_price:optional(money),sell_price:optional(money),active:boolean,sort_order:base.sort_order,updated_at:timestamp},
   stock_logs:{...log,event:oneOf('count','sold_out','day_note'),product_id:optional(uuid),product_name:optional(text(200,true)),unit:optional(oneOf('each','kg')),came_in:optional(amount),binned:optional(amount),on_hand:optional(amount),tags:tagList,note},
   counter_stock_logs:{...log,event:oneOf('put_out','taken_off'),batch_client_id:optional(uuid),product_id:optional(uuid),product_name:text(200,true),unit_id:uuid,open_life_days:optional(integer(1,90)),pack_use_by:optional(date),batch_code:optional(text(200)),delivery_log_id:optional(uuid),reason:optional(oneOf('sold_out','end_of_life','quality','other')),note},
+  food_log_contacts:{...base,role:optional(text(200)),phone:optional(v=>typeof v==='string'&&/^[0-9 +()-]{3,40}$/.test(v))},
+  hot_batch_logs:{...log,event:oneOf('out','probe','done'),batch_client_id:optional(uuid),cooking_client_id:optional(uuid),product_id:optional(uuid),product_name:text(200,true),quantity:optional(integer(0,10000)),temp_c:optional(temp),outcome:optional(oneOf('chilled','sold_out','binned')),note},
+  method_records:{...log,method_id:v=>typeof v==='string'&&/^[a-z0-9-]{1,60}$/.test(v),our_way:note},
+  training_records:{...log,trainee_id:uuid,kind:oneOf('certificate','method','induction','refresher'),topic:text(200,true),trained_on:date,expires_on:optional(date),certificate_path:optional(v=>typeof v==='string'&&CERTIFICATE_PATH.test(v)),note},
+  health_logs:{...log,subject_id:uuid,event:oneOf('sent_home','cleared'),symptom_free_48h:boolean,note},
+  review_logs:{...log,changes:v=>Array.isArray(v)&&v.length<=REVIEW_CHANGES.length&&v.every(oneOf(...REVIEW_CHANGES))&&new Set(v).size===v.length,all_ok:boolean,problems:note,actions:note},
+  site_check_logs:{...log,kind:oneOf('pest','hand_wash','maintenance'),ok:boolean,corrective_action:note},
 };
 // Log rows carry no site_id: the database derives it from the staff member.
 const required: Record<string,string[]> = {
@@ -60,6 +73,10 @@ const required: Record<string,string[]> = {
   counter_stock_logs:['event','product_name','unit_id'],
   ambient_display_logs:['event','product_name','quantity'],
   stock_lines:['product_id'],stock_logs:['event'],
+  food_log_contacts:['name','site_id'],
+  hot_batch_logs:['event','product_name'],method_records:['method_id'],
+  training_records:['trainee_id','kind','topic','trained_on'],health_logs:['subject_id','event'],
+  review_logs:['all_ok'],site_check_logs:['kind','ok'],
 };
 
 export function validateWrite(table: string, method: string, input: unknown): Record<string,unknown> {
@@ -98,6 +115,21 @@ export function validateWrite(table: string, method: string, input: unknown): Re
       : result.event === 'sold_out' ? has('product_name') && !has('unit') && !quantities.some(has) && tags === 0
       : !has('product_id') && !has('product_name') && !has('unit') && !quantities.some(has) && (tags > 0 || (typeof result.note === 'string' && result.note.length > 0));
     if (!shaped) throw new Error('Invalid entry');
+  }
+  if (method === 'POST') {
+    // Mirrors the database's constraints for the SFBB tables (20261030100000).
+    const has = (k: string) => result[k] != null;
+    const filled = (k: string) => typeof result[k] === 'string' && (result[k] as string).length > 0;
+    if (table === 'hot_batch_logs') {
+      const shaped = result.event === 'out' ? has('cooking_client_id') && !has('batch_client_id') && !has('outcome') && !has('temp_c') && typeof result.quantity === 'number' && result.quantity >= 1
+        : result.event === 'probe' ? has('batch_client_id') && !has('cooking_client_id') && !has('outcome') && !has('quantity') && has('temp_c')
+        : has('batch_client_id') && !has('cooking_client_id') && has('outcome') && has('quantity');
+      if (!shaped) throw new Error('Invalid entry');
+    }
+    if (table === 'training_records' && ((typeof result.expires_on === 'string' && typeof result.trained_on === 'string' && result.expires_on < result.trained_on) || (has('certificate_path') && result.kind !== 'certificate'))) throw new Error('Invalid entry');
+    if (table === 'health_logs' && result.event === 'cleared' && result.symptom_free_48h !== true) throw new Error('Only after 48 hours free of symptoms');
+    if (table === 'review_logs' && result.all_ok === false && !filled('problems')) throw new Error('Say what the problems were');
+    if (table === 'site_check_logs' && result.ok === false && !filled('corrective_action')) throw new Error('Say what you did about it');
   }
   if (result.recorded_at && Date.parse(String(result.recorded_at)) > Date.now() + 300000) throw new Error('Check device time');
   return result;

@@ -84,12 +84,12 @@ export function chime(): void {
   });
 }
 
-export async function notify(title: string, body: string, tag: string): Promise<void> {
+export async function notify(title: string, body: string, tag: string, url = "/sandwiches"): Promise<void> {
   if (!alertsSupported() || Notification.permission !== "granted") return;
   try {
     const registration = "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistration() : undefined;
     if (registration) {
-      await registration.showNotification(title, { body, tag, requireInteraction: true, data: { url: "/sandwiches" } });
+      await registration.showNotification(title, { body, tag, requireInteraction: true, data: { url } });
     } else {
       new Notification(title, { body, tag });
     }

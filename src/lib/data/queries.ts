@@ -2,7 +2,8 @@ import { supabase } from "@/lib/supabase/client";
 import type { CounterLog } from "@/lib/counter/board";
 import type { AmbientLog } from "@/lib/ambient/board";
 import type { StockLog } from "@/lib/stock/ledger";
-import type { StockUnit } from "@/types/database";
+import type { SiteCheckKind, StockUnit, TrainingKind } from "@/types/database";
+import type { HotBatchLog } from "@/lib/cooling/board";
 
 // Every fetcher is scoped to one site (shop). Callers pass the selected
 // site's id from useSite(); cache keys are suffixed with it too.
@@ -307,6 +308,142 @@ export async function fetchAmbientSince(siteId: string, sinceDay: string): Promi
     .gte("recorded_at", since.toISOString())
     .order("recorded_at", { ascending: false })
     .limit(1000);
+  if (error) throw error;
+  return data ?? [];
+}
+
+// -- The SFBB book (20261030100000) -------------------------------------------------
+
+// Since the start of yesterday, like the sandwich board: anything left on the
+// cooling clock overnight shows as long overdue.
+export async function fetchHotBatches(siteId: string): Promise<HotBatchLog[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - 1);
+  since.setHours(0, 0, 0, 0);
+  const { data, error } = await supabase
+    .from("hot_batch_logs")
+    .select("id, client_id, staff_id, event, batch_client_id, cooking_client_id, product_id, product_name, quantity, temp_c, due_by, outcome, note, recorded_at")
+    .eq("site_id", siteId)
+    .gte("recorded_at", since.toISOString())
+    .order("recorded_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({ ...row, temp_c: row.temp_c == null ? null : Number(row.temp_c) }));
+}
+
+export type MethodRecord = { id: string; staff_id: string; method_id: string; our_way: string | null; recorded_at: string };
+
+// Every sign-off ever made for this shop; the newest per method is current.
+export async function fetchMethodRecords(siteId: string): Promise<MethodRecord[]> {
+  const { data, error } = await supabase
+    .from("method_records")
+    .select("id, staff_id, method_id, our_way, recorded_at")
+    .eq("site_id", siteId)
+    .order("recorded_at", { ascending: false })
+    .limit(1000);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export type TrainingRecord = {
+  id: string; client_id: string; staff_id: string; trainee_id: string; kind: TrainingKind; topic: string;
+  trained_on: string; expires_on: string | null; certificate_path: string | null; note: string | null; recorded_at: string;
+};
+
+// Manager only (the API refuses staff): certificates are personal data.
+export async function fetchTrainingRecords(siteId: string): Promise<TrainingRecord[]> {
+  const { data, error } = await supabase
+    .from("training_records")
+    .select("id, client_id, staff_id, trainee_id, kind, topic, trained_on, expires_on, certificate_path, note, recorded_at")
+    .eq("site_id", siteId)
+    .order("recorded_at", { ascending: false })
+    .limit(1000);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export type HealthLog = { id: string; staff_id: string; subject_id: string; event: "sent_home" | "cleared"; symptom_free_48h: boolean; note: string | null; recorded_at: string };
+
+export async function fetchHealthLogs(siteId: string): Promise<HealthLog[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - 365);
+  const { data, error } = await supabase
+    .from("health_logs")
+    .select("id, staff_id, subject_id, event, symptom_free_48h, note, recorded_at")
+    .eq("site_id", siteId)
+    .gte("recorded_at", since.toISOString())
+    .order("recorded_at", { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export type ReviewLog = { id: string; staff_id: string; changes: string[]; all_ok: boolean; problems: string | null; actions: string | null; recorded_at: string };
+
+export async function fetchReviews(siteId: string): Promise<ReviewLog[]> {
+  const { data, error } = await supabase
+    .from("review_logs")
+    .select("id, staff_id, changes, all_ok, problems, actions, recorded_at")
+    .eq("site_id", siteId)
+    .order("recorded_at", { ascending: false })
+    .limit(30);
+  if (error) throw error;
+  return (data ?? []).map((row) => ({ ...row, changes: row.changes ?? [] }));
+}
+
+export type SiteCheck = { id: string; staff_id: string; kind: SiteCheckKind; ok: boolean; corrective_action: string | null; recorded_at: string };
+
+export async function fetchSiteChecks(siteId: string, days = 35): Promise<SiteCheck[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  since.setHours(0, 0, 0, 0);
+  const { data, error } = await supabase
+    .from("site_check_logs")
+    .select("id, staff_id, kind, ok, corrective_action, recorded_at")
+    .eq("site_id", siteId)
+    .gte("recorded_at", since.toISOString())
+    .order("recorded_at", { ascending: false })
+    .limit(1000);
+  if (error) throw error;
+  return data ?? [];
+}
+
+// The weekly probe check is due when there's no pass in the last 7 days.
+export type ProbeCheck = { id: string; pass: boolean; recorded_at: string };
+
+export async function fetchRecentProbeChecks(siteId: string): Promise<ProbeCheck[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - 35);
+  const { data, error } = await supabase
+    .from("probe_calibration_logs")
+    .select("id, pass, recorded_at")
+    .eq("site_id", siteId)
+    .gte("recorded_at", since.toISOString())
+    .order("recorded_at", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export type Contact = { id: string; name: string; role: string | null; phone: string | null; active: boolean; sort_order: number };
+
+export async function fetchContacts(siteId: string): Promise<Contact[]> {
+  const { data, error } = await supabase
+    .from("food_log_contacts")
+    .select("id, name, role, phone, active, sort_order")
+    .eq("site_id", siteId)
+    .order("sort_order");
+  if (error) throw error;
+  return data ?? [];
+}
+
+// Every staff member, including people who've left: training and health
+// records must still show the right name.
+export async function fetchAllStaff(siteId: string): Promise<(ActiveStaff & { active: boolean })[]> {
+  const { data, error } = await supabase
+    .from("staff")
+    .select("id, name, active")
+    .eq("site_id", siteId)
+    .order("sort_order");
   if (error) throw error;
   return data ?? [];
 }

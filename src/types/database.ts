@@ -231,6 +231,74 @@ export type StockLogRow = {
   created_by_device: string | null;
 };
 
+// -- The SFBB book (see 20261030100000_sfbb_book.sql) ---------------------------
+
+type LogMeta = {
+  id: string;
+  site_id: string;
+  client_id: string;
+  staff_id: string; // who recorded it
+  recorded_at: string;
+  synced_at: string;
+  corrects_entry_id: string | null;
+  created_by_device: string | null;
+};
+
+// The cooling clock: out of the oven (2 hours, server-stamped) → probes → done.
+export type HotBatchLogRow = LogMeta & {
+  event: "out" | "probe" | "done";
+  batch_client_id: string | null; // probe/done → the out row's client_id
+  cooking_client_id: string | null; // out → the cooking check that proved 75°C
+  product_id: string | null;
+  product_name: string;
+  quantity: number | null; // out: how many; done: how many were left
+  temp_c: number | null;
+  due_by: string | null; // out: recorded_at + 2 hours
+  outcome: "chilled" | "sold_out" | "binned" | null;
+  note: string | null;
+};
+
+export type MethodRecordRow = LogMeta & { method_id: string; our_way: string | null };
+
+export type TrainingKind = "certificate" | "method" | "induction" | "refresher";
+export type TrainingRecordRow = LogMeta & {
+  trainee_id: string;
+  kind: TrainingKind;
+  topic: string; // certificate name, or a safe method id
+  trained_on: string; // YYYY-MM-DD
+  expires_on: string | null;
+  certificate_path: string | null;
+  note: string | null;
+};
+
+export type HealthLogRow = LogMeta & {
+  subject_id: string;
+  event: "sent_home" | "cleared";
+  symptom_free_48h: boolean;
+  note: string | null;
+};
+
+export type ReviewLogRow = LogMeta & {
+  changes: string[];
+  all_ok: boolean;
+  problems: string | null;
+  actions: string | null;
+};
+
+export type SiteCheckKind = "pest" | "hand_wash" | "maintenance";
+export type SiteCheckLogRow = LogMeta & { kind: SiteCheckKind; ok: boolean; corrective_action: string | null };
+
+export type ContactRow = {
+  id: string;
+  site_id: string;
+  name: string;
+  role: string | null;
+  phone: string | null;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+};
+
 // supabase-js v2 requires each table to carry a Relationships array and the
 // schema to declare Views/Functions — without them the schema fails its
 // GenericSchema constraint and every Insert/Update degrades to `never`.
@@ -280,6 +348,13 @@ export type Database = {
       >;
       stock_lines: TableDef<StockLineRow, "product_id">;
       stock_logs: TableDef<StockLogRow, "client_id" | "staff_id" | "event" | "recorded_at">;
+      hot_batch_logs: TableDef<HotBatchLogRow, "client_id" | "staff_id" | "event" | "product_name" | "recorded_at">;
+      method_records: TableDef<MethodRecordRow, "client_id" | "staff_id" | "method_id" | "recorded_at">;
+      training_records: TableDef<TrainingRecordRow, "client_id" | "staff_id" | "trainee_id" | "kind" | "topic" | "trained_on" | "recorded_at">;
+      health_logs: TableDef<HealthLogRow, "client_id" | "staff_id" | "subject_id" | "event" | "recorded_at">;
+      review_logs: TableDef<ReviewLogRow, "client_id" | "staff_id" | "all_ok" | "recorded_at">;
+      site_check_logs: TableDef<SiteCheckLogRow, "client_id" | "staff_id" | "kind" | "ok" | "recorded_at">;
+      food_log_contacts: TableDef<ContactRow, "name" | "site_id">;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

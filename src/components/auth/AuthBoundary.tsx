@@ -7,6 +7,7 @@ import { claimLegacyEntries, getUnsyncedEntries, removeSyncedEntries } from '@/l
 import { syncOutbox } from '@/lib/offline/sync';
 import { MobileNav } from '@/components/ui/MobileNav';
 import { AmbientAlertBar } from '@/components/ambient/AmbientAlertBar';
+import { CoolingAlertBar } from '@/components/cooling/CoolingAlertBar';
 import { SiteProvider, SiteSwitcher } from '@/lib/site/SiteContext';
 
 const UserContext = createContext<BrowserUser|null>(null);
@@ -114,6 +115,7 @@ export function AuthBoundary({children}:{children:React.ReactNode}) {
         </div>
       </div>
       <AmbientAlertBar />
+      <CoolingAlertBar />
       {error && <p role="alert" className="px-4 py-2 text-danger">{error}</p>}
       {legacy>0 && <div role="status" className="px-4 py-3 bg-gold-soft">{legacy} entries saved before account sign-in need manager review. {user.role==='manager' && <button onClick={recoverLegacy} disabled={busy} className="underline font-bold">Claim and sync this device&apos;s entries</button>}</div>}
       <div className="pb-16 md:pb-0">{children}</div>

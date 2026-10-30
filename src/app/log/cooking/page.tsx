@@ -12,6 +12,9 @@ import { fetchActiveStaff, fetchActiveProducts } from "@/lib/data/queries";
 import { useRememberedStaff } from "@/lib/staffMemory";
 import { queueEntry } from "@/lib/offline/outbox";
 import { syncOutbox } from "@/lib/offline/sync";
+import { appendToTodayCache } from "@/lib/data/optimistic";
+import { HowLink } from "@/components/ui/HowLink";
+import { computeDueBy } from "@/lib/cooling/board";
 
 // Covers all three SFBB hot-food checks. After saving, the form resets but
 // keeps the staff member and check type — morning bakes mean logging five
@@ -37,6 +40,10 @@ export default function CookingLogPage() {
   const [quantity, setQuantity] = useState(1);
   const [temp, setTemp] = useState("");
   const [correctiveAction, setCorrectiveAction] = useState("");
+  // Selling it warm off the side (sausage rolls)? The 2-hour cooling clock
+  // starts the moment a cooked batch passes 75°C. On by default: switching
+  // it off is the deliberate choice.
+  const [startClock, setStartClock] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showSaved, setShowSaved] = useState(false);
@@ -76,7 +83,7 @@ export default function CookingLogPage() {
     setSaving(true);
     setSaveError(null);
     try {
-      await queueEntry("cooking_logs", {
+      const cookingId = await queueEntry("cooking_logs", {
         staff_id: staffId,
         check_type: checkType,
         product_id: productId,
@@ -87,6 +94,13 @@ export default function CookingLogPage() {
         corrective_action: numericTemp < check.target ? correctiveAction.trim() : null,
         recorded_at: new Date().toISOString(),
       });
+      const clock = checkType === "cooking" && startClock && numericTemp >= check.target;
+      if (clock) {
+        const recordedAt = new Date().toISOString();
+        const out = { staff_id: staffId, event: "out", cooking_client_id: cookingId, product_id: productId, product_name: productName.trim(), quantity, recorded_at: recordedAt };
+        const outId = await queueEntry("hot_batch_logs", out);
+        appendToTodayCache(`cd-hot-batches:${site.id}`, { id: outId, client_id: outId, batch_client_id: null, temp_c: null, outcome: null, note: null, due_by: computeDueBy(new Date(recordedAt)), ...out });
+      }
       void syncOutbox().catch(() => {});
       setShowSaved(true);
       setTimeout(() => {
@@ -108,10 +122,11 @@ export default function CookingLogPage() {
   return (
     <div className="flex flex-col flex-1">
       <PageHeader title="Hot Food Check" />
-      <SavedOverlay show={showSaved} message={`${productName.trim() || "Entry"} saved`} />
+      <SavedOverlay show={showSaved} message={`${productName.trim() || "Entry"} saved${checkType === "cooking" && startClock && inRange ? " · 2-hour clock started" : ""}`} />
       {saveError && <p role="alert" className="px-4 py-2 text-danger">{saveError}</p>}
 
       <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
+        <div className="flex flex-wrap gap-2"><HowLink method={checkType === "cooking" ? "cooking-safely" : checkType === "reheating" ? "reheating" : "hot-holding"} /></div>
         <section>
           <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
             Who&apos;s checking?
@@ -228,6 +243,18 @@ export default function CookingLogPage() {
             </p>
           )}
         </section>
+
+        {checkType === "cooking" && inRange !== false && (
+          <section>
+            <button type="button" role="switch" aria-checked={startClock} onClick={() => setStartClock((v) => !v)} className={`w-full flex items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3.5 text-left ${startClock ? "border-brand bg-brand-soft" : "border-line bg-surface"}`}>
+              <span>
+                <span className="block font-bold text-ink">⏱ Start the 2-hour cooling clock</span>
+                <span className="block text-sm text-ink-soft">For anything cooling on the side to sell warm. Off if it goes straight in the fridge.</span>
+              </span>
+              <span className={`h-8 w-14 shrink-0 rounded-full p-1 transition-colors ${startClock ? "bg-brand" : "bg-line"}`}><span className={`block h-6 w-6 rounded-full bg-white transition-transform ${startClock ? "translate-x-6" : ""}`} /></span>
+            </button>
+          </section>
+        )}
 
         {needsCorrectiveAction && (
           <section>

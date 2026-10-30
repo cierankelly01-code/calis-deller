@@ -6,6 +6,7 @@ process.env.SUPABASE_URL='https://food-log-test.supabase.co';
 process.env.SUPABASE_PUBLISHABLE_KEY='sb_publishable_test_fixture_only';
 process.env.APP_ORIGIN='http://localhost:3100';
 const originalFetch=globalThis.fetch;
+const storageObjects=new Map();
 const sessions=new Map();
 const refreshTokens=new Map();
 const staffId='11111111-1111-4111-8111-111111111111';
@@ -18,6 +19,7 @@ const tables={
   fridge_units:[{id:unitId,site_id:siteId,name:'Test fridge',unit_type:'fridge',target_min_c:1,target_max_c:5,active:true,sort_order:1}],
   cleaning_tasks:[{id:taskId,site_id:siteId,name:'Test worktops',session:'both',active:true,sort_order:1}],
   suppliers:[],products:[],fridge_temp_logs:[],cooking_logs:[],delivery_logs:[],cleaning_logs:[],probe_calibration_logs:[],counter_stock_logs:[],ambient_display_logs:[],stock_lines:[],stock_logs:[],
+  hot_batch_logs:[],method_records:[],training_records:[],health_logs:[],review_logs:[],site_check_logs:[],food_log_contacts:[],
 };
 function sessionFor(role) {
   const id=role==='manager'?'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa':'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -34,7 +36,7 @@ globalThis.fetch=async(input,init={})=>{
   const method=init.method??'GET';
   const token=headers.get('authorization')?.replace(/^Bearer /,'');
   const user=sessions.get(token);
-  const data=init.body?JSON.parse(init.body):null;
+  const data=init.body&&!url.pathname.startsWith('/storage/')?JSON.parse(init.body):null;
   if(url.pathname==='/auth/v1/token') {
     if(url.searchParams.get('grant_type')==='refresh_token') {
       const saved=refreshTokens.get(data?.refresh_token);
@@ -51,8 +53,18 @@ globalThis.fetch=async(input,init={})=>{
     return new Response(null,{status:204});
   }
   if(!user)return Response.json({message:'Sign in required'},{status:401});
+  // Storage: the certificate bucket, managers only (mirrors its policies).
+  if(url.pathname.startsWith('/storage/v1/object/')){
+    if(user.app_metadata.food_log_role!=='manager')return Response.json({message:'Unauthorized'},{status:403});
+    const name=url.pathname.replace(/^\/storage\/v1\/object\/(authenticated\/)?food-log-certificates\//,'');
+    if(method==='POST'){storageObjects.set(name,{body:Buffer.from(init.body),type:headers.get('content-type')});return Response.json({Key:name});}
+    const found=storageObjects.get(name);
+    return found?new Response(found.body,{headers:{'Content-Type':found.type}}):Response.json({message:'Not found'},{status:400});
+  }
   const table=url.pathname.split('/').at(-1);
   if(!Object.hasOwn(tables,table))return Response.json({message:'Not found'},{status:404});
+  // Mirrors the read policies: personal data is for managers only.
+  if(['training_records','health_logs'].includes(table)&&user.app_metadata.food_log_role!=='manager'&&method==='GET')return Response.json([]);
   let rows=tables[table];
   const matches=row=>[...url.searchParams].every(([key,value])=>{
     if(['select','order','limit','offset'].includes(key))return true;
@@ -69,6 +81,7 @@ globalThis.fetch=async(input,init={})=>{
     // life counts the day opened; a sooner pack use-by wins).
     if(table==='ambient_display_logs'&&data.event==='put_out'){data.display_minutes=Math.min(data.display_minutes??180,240);data.off_by=new Date(Date.parse(data.recorded_at)+data.display_minutes*60000).toISOString();}
     if(table==='counter_stock_logs'&&data.event==='put_out'){const d=new Date(data.recorded_at);d.setDate(d.getDate()+data.open_life_days-1);const byLife=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;data.discard_by=data.pack_use_by&&data.pack_use_by<byLife?data.pack_use_by:byLife;}
+    if(table==='hot_batch_logs'&&data.event==='out')data.due_by=new Date(Date.parse(data.recorded_at)+2*3600000).toISOString();
     if(table==='stock_logs'){const d=new Date(data.recorded_at);data.business_date=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;data.tags??=[];}
     rows.push({id:randomUUID(),active:true,sort_order:0,allergens:[],may_contain:[],site_id:tables.staff.find(s=>s.id===data.staff_id)?.site_id,created_at:new Date().toISOString(),synced_at:new Date().toISOString(),...data,authenticated_user_id:user.id});
     return new Response(null,{status:201});

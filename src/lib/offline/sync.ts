@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
-import { getUnsyncedEntries, markSynced, type OutboxEntry } from "@/lib/offline/outbox";
+import { getUnsyncedEntries, markSynced, PRIVATE_TABLES, removeEntry, type OutboxEntry } from "@/lib/offline/outbox";
 import { getBrowserUser } from '@/lib/security/browser-session';
 
 // Safari on iOS has no Background Sync API, so this in-app worker is the
@@ -56,7 +56,8 @@ export async function syncOutbox(): Promise<{ synced: number; remaining: number 
       if (entry.ownerId !== user.id || getBrowserUser()?.id !== user.id) continue;
       const ok = await pushEntry(entry);
       if (ok) {
-        await markSynced(entry.clientId);
+        if (PRIVATE_TABLES.includes(entry.table)) await removeEntry(entry.clientId);
+        else await markSynced(entry.clientId);
         synced += 1;
       }
     }
