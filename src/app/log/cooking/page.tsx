@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StaffTilePicker } from "@/components/ui/StaffTilePicker";
 import { NumberPad } from "@/components/ui/NumberPad";
@@ -8,7 +8,8 @@ import { SaveBar } from "@/components/ui/SaveBar";
 import { SavedOverlay } from "@/components/ui/SavedOverlay";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
 import { useSite } from "@/lib/site/SiteContext";
-import { fetchActiveStaff, fetchActiveProducts } from "@/lib/data/queries";
+import { fetchActiveStaff, fetchActiveProducts, fetchRecentCooking } from "@/lib/data/queries";
+import { cookedChoices } from "@/lib/cooking/choices";
 import { useRememberedStaff } from "@/lib/staffMemory";
 import { queueEntry } from "@/lib/offline/outbox";
 import { syncOutbox } from "@/lib/offline/sync";
@@ -32,6 +33,9 @@ export default function CookingLogPage() {
   const { site } = useSite();
   const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
   const { data: products } = useCachedQuery("cd-products", fetchActiveProducts);
+  const { data: recentCooking } = useCachedQuery(`cd-recent-cooking:${site.id}`, () => fetchRecentCooking(site.id));
+  const choices = useMemo(() => cookedChoices(products ?? [], recentCooking ?? []), [products, recentCooking]);
+  const [showAll, setShowAll] = useState(false);
 
   const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
   const [checkType, setCheckType] = useState<CheckType>("cooking");
@@ -68,8 +72,8 @@ export default function CookingLogPage() {
     : needsCorrectiveAction && correctiveAction.trim().length === 0 ? "Below target — say what you did about it"
     : null;
 
-  function pickProduct(id: string, name: string) {
-    if (productId === id) {
+  function pickProduct(id: string | null, name: string) {
+    if (productName.trim().toLowerCase() === name.trim().toLowerCase()) {
       setProductId(null);
       setProductName("");
     } else {
@@ -167,34 +171,41 @@ export default function CookingLogPage() {
           <h2 className="section-title mb-2.5">
             Which product?
           </h2>
-          {(products ?? []).length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {(products ?? []).map((product) => (
-                <button
-                  key={product.id}
-                  type="button"
-                  onClick={() => pickProduct(product.id, product.name)}
-                  className={`h-12 rounded-full px-4 text-base font-semibold transition-all active:scale-95 ${
-                    product.id === productId
-                      ? "bg-brand text-white shadow-sm"
-                      : "bg-surface text-ink border border-line shadow-sm"
-                  }`}
-                >
-                  {product.name}
+          <div className="grid grid-cols-2 gap-2.5 mb-3">
+            {choices.map((choice) => {
+              const on = productName.trim().toLowerCase() === choice.name.trim().toLowerCase();
+              return (
+                <button key={choice.name} type="button" onClick={() => pickProduct(choice.id, choice.name)} className={`h-16 rounded-2xl px-3 text-lg font-bold transition-all active:scale-95 ${on ? "bg-brand text-white shadow-sm" : "bg-surface text-ink border border-line shadow-sm"}`}>
+                  {choice.name}
                 </button>
-              ))}
-            </div>
+              );
+            })}
+          </div>
+          {!showAll ? (
+            <button type="button" onClick={() => setShowAll(true)} className="min-h-11 text-sm font-semibold text-brand underline underline-offset-2">Something else?</button>
+          ) : (
+            <>
+              {(products ?? []).length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {(products ?? []).map((product) => (
+                    <button key={product.id} type="button" onClick={() => pickProduct(product.id, product.name)} className={`h-11 rounded-full px-4 text-base font-semibold transition-all active:scale-95 ${product.id === productId ? "bg-brand text-white shadow-sm" : "bg-surface text-ink border border-line shadow-sm"}`}>
+                      {product.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <input
+                type="text"
+                value={productName}
+                onChange={(e) => {
+                  setProductName(e.target.value);
+                  setProductId(null);
+                }}
+                placeholder="…or type what it is"
+                className="w-full h-12 rounded-2xl border border-line bg-surface px-4 text-base placeholder:text-ink-faint focus:outline-none focus:border-brand"
+              />
+            </>
           )}
-          <input
-            type="text"
-            value={productName}
-            onChange={(e) => {
-              setProductName(e.target.value);
-              setProductId(null);
-            }}
-            placeholder="…or type the product name"
-            className="w-full h-12 rounded-2xl border border-line bg-surface px-4 text-base placeholder:text-ink-faint focus:outline-none focus:border-brand"
-          />
         </section>
 
         <section>

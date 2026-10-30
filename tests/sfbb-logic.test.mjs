@@ -138,3 +138,11 @@ test('API rules: personal data is manager-only, new entries validated like the d
   assert.throws(()=>validateWrite('food_log_contacts','POST',{name:'Pest Co',site_id:randomUUID(),phone:'<script>'}),/Invalid/);
   assert.throws(()=>validateWrite('method_records','POST',{...base,method_id:'Not An Id'}),/Invalid/);
 });
+
+test('hot food check offers sausage rolls and pasties first, then what this shop cooks',async()=>{
+  const {cookedChoices}=await import('../src/lib/cooking/choices.ts');
+  const products=[{id:'p1',name:'Ham'},{id:'p2',name:'Sausage Roll'},{id:'p3',name:'Quiche'}];
+  const recent=[{product_id:null,product_name:'sausage rolls'},{product_id:'p3',product_name:'Quiche'},{product_id:'p3',product_name:'quiche '},{product_id:null,product_name:'Scotch egg'}];
+  assert.deepEqual(cookedChoices(products,recent),[{id:'p2',name:'Sausage Roll'},{id:null,name:'Pasties'},{id:'p3',name:'Quiche'},{id:null,name:'Scotch egg'}],'the product record is used where it exists; ham is never offered; most-cooked first');
+  assert.deepEqual(cookedChoices([],[]).map(c=>c.name),['Sausage rolls','Pasties'],'a new shop still gets the two');
+});

@@ -447,3 +447,18 @@ export async function fetchAllStaff(siteId: string): Promise<(ActiveStaff & { ac
   if (error) throw error;
   return data ?? [];
 }
+
+// What this shop has cooked lately: the hot food check offers these first.
+export async function fetchRecentCooking(siteId: string): Promise<{ product_id: string | null; product_name: string }[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - 60);
+  const { data, error } = await supabase
+    .from("cooking_logs")
+    .select("product_id, product_name")
+    .eq("site_id", siteId)
+    .gte("recorded_at", since.toISOString())
+    .order("recorded_at", { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  return data ?? [];
+}
