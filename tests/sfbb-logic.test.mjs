@@ -77,17 +77,17 @@ test('safe methods: unique ids, steps, links to real screens, no invented coolin
 
 test('training: longest-lasting certificate counts, expiry warnings, methods trained',async()=>{
   const {trainingByPerson,certStatus,certificatesNeedingAction}=await import('../src/lib/training/status.ts');
-  const simone=randomUUID(),beth=randomUUID(),jess=randomUUID();
+  const staffA=randomUUID(),staffB=randomUUID(),staffC=randomUUID();
   const rec=(over)=>({id:randomUUID(),client_id:randomUUID(),staff_id:randomUUID(),kind:'certificate',topic:'Level 2 Food Hygiene',trained_on:'2023-01-01',expires_on:null,certificate_path:null,note:null,recorded_at:'2026-10-01T10:00:00Z',...over});
   const today=new Date('2026-10-30T12:00:00');
   const records=[
-    rec({trainee_id:simone,expires_on:'2026-11-10'}),
-    rec({trainee_id:simone,kind:'method',topic:'hand-washing'}),
-    rec({trainee_id:simone,kind:'induction',topic:'First-day induction'}),
-    rec({trainee_id:beth,expires_on:'2026-01-01'}),
-    rec({trainee_id:beth,expires_on:'2029-01-01',recorded_at:'2026-10-02T10:00:00Z'}),
+    rec({trainee_id:staffA,expires_on:'2026-11-10'}),
+    rec({trainee_id:staffA,kind:'method',topic:'hand-washing'}),
+    rec({trainee_id:staffA,kind:'induction',topic:'First-day induction'}),
+    rec({trainee_id:staffB,expires_on:'2026-01-01'}),
+    rec({trainee_id:staffB,expires_on:'2029-01-01',recorded_at:'2026-10-02T10:00:00Z'}),
   ];
-  const people=trainingByPerson(records,[simone,beth,jess],today);
+  const people=trainingByPerson(records,[staffA,staffB,staffC],today);
   assert.deepEqual(people.map(p=>p.certStatus),['expiring','ok','none'],'renewal wins; no certificate is flagged');
   assert.ok(people[0].methods.has('hand-washing'));assert.ok(people[0].inducted);
   assert.equal(certificatesNeedingAction(people),2);
