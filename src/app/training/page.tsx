@@ -146,7 +146,7 @@ export default function TrainingPage() {
               )}
               {(() => {
                 const read = inductionProgress(inductions ?? [], person.staffId);
-                return <p className={`text-sm font-semibold ${read.complete ? "text-brand" : "text-gold-deep"}`}>{read.complete ? `✓ Read and understood all ${read.total} safe methods (${read.completedAt ? formatDate(read.completedAt) : ""})` : `Read and understood ${read.done} of ${read.total} safe methods`}</p>;
+                return <p className={`text-sm font-semibold ${read.complete ? "text-brand" : "text-gold-deep"}`}>{read.complete ? `✓ Read all ${read.total} and passed the quiz (${read.completedAt ? formatDate(read.completedAt) : ""})` : read.readingDone ? `Read all ${read.total} · quiz not passed yet` : `Read and understood ${read.done} of ${read.total}`}</p>;
               })()}
               <p className="text-sm text-ink-soft">
                 {person.inducted ? "Induction done" : "No induction recorded"} · trained on {person.methods.size} of {SAFE_METHODS.length} methods

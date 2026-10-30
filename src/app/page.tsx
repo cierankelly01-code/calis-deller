@@ -242,8 +242,8 @@ export default function DashboardPage() {
           <Link href="/start" className="flex items-center gap-4 rounded-3xl bg-gold-soft border-2 border-gold/60 p-4 active:scale-[0.99] transition-transform">
             <IconTile name="cap" tone="gold" />
             <span className="flex-1 min-w-0">
-              <span className="block text-lg font-bold text-ink">{myTraining.done === 0 ? "Start your training" : "Finish your training"}</span>
-              <span className="block text-sm text-ink-soft">{myTraining.done} of {myTraining.total} read. Everyone does this once.</span>
+              <span className="block text-lg font-bold text-ink">{myTraining.done === 0 ? "Start your training" : myTraining.readingDone ? "One last step: the quiz" : "Finish your training"}</span>
+              <span className="block text-sm text-ink-soft">{myTraining.readingDone ? "All read. Now a quick quiz to finish." : `${myTraining.done} of ${myTraining.total} read. Everyone does this once.`}</span>
             </span>
             <Icon name="chevron" className="text-gold-deep" />
           </Link>

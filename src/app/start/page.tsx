@@ -16,6 +16,8 @@ import { findMethod } from "@/lib/methods/content";
 import { methodIcon } from "@/lib/methods/icons";
 import { currentSignOffs, formatDate } from "@/lib/methods/records";
 import { APP_TOUR, REQUIRED_READING, inductionProgress, readingTitle } from "@/lib/training/induction";
+import { QUIZ, QUIZ_ID } from "@/lib/training/quiz";
+import { Quiz } from "@/components/training/Quiz";
 
 // Staff training, done on the iPad: each person reads the safe methods
 // everyone must know, one at a time, and confirms "I've read and understood
@@ -41,12 +43,12 @@ export default function StartPage() {
   const currentId = picked ?? progress?.nextId ?? null;
   const method = currentId && currentId !== APP_TOUR ? findMethod(currentId) : undefined;
 
-  async function confirm() {
-    if (!staffId || !currentId) return;
+  async function confirm(itemId: string | null = currentId) {
+    if (!staffId || !itemId) return;
     setSaving(true);
     setError(null);
     try {
-      const row = { staff_id: staffId, method_id: currentId, recorded_at: new Date().toISOString() };
+      const row = { staff_id: staffId, method_id: itemId, recorded_at: new Date().toISOString() };
       const id = await queueEntry("induction_logs", row);
       const saved: InductionLog = { id, ...row };
       setLocal((l) => [saved, ...l]);
@@ -83,7 +85,7 @@ export default function StartPage() {
               <div className="mt-4 h-3 rounded-full bg-paper overflow-hidden">
                 <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${progress ? (progress.done / progress.total) * 100 : 0}%` }} />
               </div>
-              <p className="mt-2 text-sm font-semibold text-ink-soft">{progress?.done ?? 0} of {progress?.total ?? REQUIRED_READING.length} read</p>
+              <p className="mt-2 text-sm font-semibold text-ink-soft">{progress?.done ?? 0} of {progress?.total ?? REQUIRED_READING.length} read · quiz {progress?.quizPassedAt ? "passed ✓" : "to do"}</p>
             </section>
 
             {progress?.complete && !picked ? (
@@ -92,6 +94,15 @@ export default function StartPage() {
                 <p className="mt-3 text-2xl font-bold">Training done. Well done, {me.name}.</p>
                 <p className="mt-1 text-white/85">Finished {progress.completedAt ? formatDate(progress.completedAt) : "today"}. The manager can see it in Training. You can re-read any of these whenever you like.</p>
                 <Link href="/" className="mt-4 inline-flex h-12 items-center rounded-2xl bg-white px-6 font-bold text-brand-deep">Go to today&apos;s jobs</Link>
+              </section>
+            ) : progress?.readingDone && !progress.quizPassedAt && !picked ? (
+              <section className="space-y-3">
+                <div className="rounded-3xl bg-gold-soft border-2 border-gold/60 p-5">
+                  <p className="text-xl font-bold text-ink">Last step: a quick quiz</p>
+                  <p className="mt-1 text-ink">{QUIZ.length} questions on what you&apos;ve just read. Get one wrong and you&apos;ll see the right answer, then it comes back later. You finish when they&apos;re all right.</p>
+                </div>
+                {error && <p role="alert" className="text-danger">{error}</p>}
+                <Quiz onPass={() => confirm(QUIZ_ID)} saving={saving} />
               </section>
             ) : currentId && (
               <section className="rounded-3xl bg-surface border-2 border-brand/30 p-5 space-y-4">
@@ -131,7 +142,7 @@ export default function StartPage() {
                   </>
                 )}
                 {error && <p role="alert" className="text-danger">{error}</p>}
-                <button type="button" disabled={saving} onClick={confirm} className="w-full h-16 rounded-2xl bg-brand text-white text-lg font-bold flex items-center justify-center gap-2 disabled:opacity-40">
+                <button type="button" disabled={saving} onClick={() => confirm()} className="w-full h-16 rounded-2xl bg-brand text-white text-lg font-bold flex items-center justify-center gap-2 disabled:opacity-40">
                   <Icon name="check" strokeWidth={2.5} /> {saving ? "Saving…" : "I've read and understood this"}
                 </button>
                 <p className="text-sm text-ink-soft text-center">Not sure about something? Ask the manager before you tick.</p>

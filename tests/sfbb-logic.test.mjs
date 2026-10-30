@@ -157,8 +157,22 @@ test('staff induction: progress per person, latest confirmation wins, every item
   const p=inductionProgress(logs,a);
   assert.equal(p.done,2);assert.equal(p.complete,false);assert.equal(p.nextId,REQUIRED_READING[2],'next unread item');
   const full=REQUIRED_READING.map((id,i)=>log(a,id,`2026-10-30T10:${String(i).padStart(2,'0')}:00Z`));
-  const done=inductionProgress(full,a);
-  assert.equal(done.complete,true);assert.equal(done.nextId,null);assert.equal(done.completedAt,`2026-10-30T10:${String(REQUIRED_READING.length-1).padStart(2,'0')}:00Z`);
+  const readOnly=inductionProgress(full,a);
+  assert.equal(readOnly.readingDone,true);assert.equal(readOnly.complete,false,'reading alone is not training: the quiz must be passed');assert.equal(readOnly.nextId,null);
+  const {QUIZ_ID,QUIZ,nextQueue,optionOrder}=await import('../src/lib/training/quiz.ts');
+  const done=inductionProgress([...full,log(a,QUIZ_ID,'2026-10-30T11:00:00Z')],a);
+  assert.equal(done.complete,true);assert.equal(done.completedAt,'2026-10-30T11:00:00Z','finished when the quiz was passed');
+  assert.equal(inductionProgress([log(b,QUIZ_ID,'2026-10-30T11:00:00Z'),...full],b).complete,false,'someone else’s pass never counts');
+  // the quiz itself
+  assert.equal(new Set(QUIZ.map(q=>q.id)).size,QUIZ.length);
+  for(const q of QUIZ){
+    assert.ok(findMethod(q.method),`question ${q.id} comes from a real card`);
+    assert.ok(q.answer>=0&&q.answer<q.options.length,`question ${q.id} has a valid answer`);
+    assert.deepEqual([...optionOrder(q,42)].sort(),q.options.map((_,i)=>i),'shuffle keeps every option');
+    assert.deepEqual(optionOrder(q,42),optionOrder(q,42),'same seed, same order');
+  }
+  assert.deepEqual(nextQueue(['x','y','z'],'x',true),['y','z'],'right answers leave the queue');
+  assert.deepEqual(nextQueue(['x','y','z'],'x',false),['y','z','x'],'wrong answers come back at the end');
   const {canAccess,validateWrite}=await import('../src/lib/security/policy.ts');
   assert.ok(canAccess('staff','induction_logs','POST'),'staff record their own reading');
   assert.ok(validateWrite('induction_logs','POST',{client_id:randomUUID(),staff_id:a,recorded_at:new Date().toISOString(),method_id:'hand-washing'}));

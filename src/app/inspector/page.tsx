@@ -96,9 +96,9 @@ export default function InspectorPage() {
 
         <section className="rounded-2xl bg-surface border border-line px-5 py-4">
           <h2 className="font-bold text-ink">Staff trained on our safe methods</h2>
-          <p className="mt-1 text-sm text-ink-soft">Each person reads the methods on this iPad and confirms they understood, under their own name. {trained.filter((t) => t.complete).length} of {trained.length} done.</p>
+          <p className="mt-1 text-sm text-ink-soft">Each person reads the methods on this iPad, confirms each one under their own name, and must answer every question of a quiz correctly to finish. {trained.filter((t) => t.complete).length} of {trained.length} done.</p>
           <ul className="mt-2 space-y-1 text-sm">
-            {trained.map((t) => <li key={t.staffId} className="flex justify-between gap-3"><span className="text-ink">{t.name}</span><span className={t.complete ? "text-brand font-semibold" : "text-gold-deep"}>{t.complete ? `✓ ${t.completedAt ? formatDate(t.completedAt) : ""}` : `${t.done} of ${t.total}`}</span></li>)}
+            {trained.map((t) => <li key={t.staffId} className="flex justify-between gap-3"><span className="text-ink">{t.name}</span><span className={t.complete ? "text-brand font-semibold" : "text-gold-deep"}>{t.complete ? `✓ ${t.completedAt ? formatDate(t.completedAt) : ""}` : t.readingDone ? "quiz to do" : `${t.done} of ${t.total} read`}</span></li>)}
           </ul>
         </section>
 
