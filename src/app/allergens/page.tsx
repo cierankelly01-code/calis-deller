@@ -181,7 +181,7 @@ export default function AllergensPage() {
         <PageHeader title={editor.id ? "Edit Product" : "Add Product"} backHref="/allergens" />
         <div className="flex-1 px-4 py-5 space-y-6 max-w-2xl w-full mx-auto">
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2">
+            <h2 className="section-title mb-2">
               Product name
             </h2>
             <input
@@ -195,7 +195,7 @@ export default function AllergensPage() {
           </section>
 
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-1">
+            <h2 className="section-title mb-1">
               Allergens
             </h2>
             <p className="text-sm text-ink-soft mb-3">
@@ -231,7 +231,7 @@ export default function AllergensPage() {
           </section>
 
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2">
+            <h2 className="section-title mb-2">
               What kind of product?
             </h2>
             <div className="grid grid-cols-2 gap-2">
@@ -256,7 +256,7 @@ export default function AllergensPage() {
 
           {editor.category === "deli" && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-1">
+            <h2 className="section-title mb-1">
               Once opened for the counter, sell within
             </h2>
             <p className="text-sm text-ink-soft mb-3">
@@ -282,7 +282,7 @@ export default function AllergensPage() {
           )}
 
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2">
+            <h2 className="section-title mb-2">
               Notes (optional)
             </h2>
             <textarea
@@ -342,7 +342,7 @@ export default function AllergensPage() {
         />
 
         <div>
-          <p className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2">
+          <p className="section-title mb-2">
             Customer has an allergy? Tap it
           </p>
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">

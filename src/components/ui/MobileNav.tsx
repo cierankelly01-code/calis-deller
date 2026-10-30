@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Icon, type IconName } from "@/components/ui/Icon";
 
-const items = [
-  { href: "/", label: "Today", icon: "⌂" },
-  { href: "/methods", label: "How to", icon: "📘" },
-  { href: "/diary", label: "Diary", icon: "▤" },
-  { href: "/allergens", label: "Allergens", icon: "⚠" },
-] as const;
+const items: { href: string; label: string; icon: IconName }[] = [
+  { href: "/", label: "Today", icon: "home" },
+  { href: "/methods", label: "How to", icon: "book" },
+  { href: "/diary", label: "Diary", icon: "calendar" },
+  { href: "/allergens", label: "Allergens", icon: "alert" },
+];
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -25,12 +26,12 @@ export function MobileNav() {
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`min-h-16 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-colors ${
+              className={`min-h-16 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-colors ${
                 active ? "text-brand" : "text-ink-soft"
               }`}
             >
-              <span className={`grid h-8 w-8 place-items-center rounded-full text-xl leading-none ${active ? "bg-brand-soft" : ""}`} aria-hidden>
-                {item.icon}
+              <span className={`grid h-8 w-12 place-items-center rounded-full ${active ? "bg-brand-soft" : ""}`}>
+                <Icon name={item.icon} size={22} />
               </span>
               {item.label}
             </Link>

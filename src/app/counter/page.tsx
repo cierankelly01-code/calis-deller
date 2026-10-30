@@ -207,7 +207,7 @@ export default function CounterBoardPage() {
           const warm = warmUnit(unitId);
           return (
           <section key={unitId}>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+            <h2 className="section-title mb-2.5">
               🧊 {unitName(unitId)} <span className="text-ink-faint">({list.length})</span>
             </h2>
             {warm && (
@@ -265,7 +265,7 @@ export default function CounterBoardPage() {
                       </button>
                     ) : (
                       <div className="mt-3 space-y-3 rounded-xl bg-paper border border-line p-3 print:hidden">
-                        <p className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider">Why is it coming off?</p>
+                        <p className="section-title">Why is it coming off?</p>
                         <div className="grid grid-cols-2 gap-2">
                           {(Object.keys(REASONS) as Reason[]).map((key) => (
                             <button
@@ -289,7 +289,7 @@ export default function CounterBoardPage() {
                             className="w-full rounded-xl border border-line bg-surface p-3 text-base min-h-20 placeholder:text-ink-faint focus:outline-none focus:border-brand"
                           />
                         )}
-                        <p className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider">Who&apos;s taking it off?</p>
+                        <p className="section-title">Who&apos;s taking it off?</p>
                         <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
                         <div className="flex gap-2">
                           <button
@@ -319,7 +319,7 @@ export default function CounterBoardPage() {
         })}
 
         <section className="rounded-2xl bg-surface border border-line px-4 py-4">
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider">
+          <h2 className="section-title">
             Last {stats.days} days — prove it
           </h2>
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
@@ -355,13 +355,13 @@ export default function CounterBoardPage() {
             className="w-full flex items-center justify-between text-left print:hidden"
             aria-expanded={showProcedure}
           >
-            <span className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider">
+            <span className="section-title">
               📋 Our stock rotation procedure
             </span>
             <span className="text-ink-faint" aria-hidden>{showProcedure ? "▴" : "▾"}</span>
           </button>
           <div className={`${showProcedure ? "block" : "hidden"} print:block mt-3 space-y-2 text-sm text-ink`}>
-            <p className="hidden print:block text-[13px] font-semibold text-ink-soft uppercase tracking-wider">
+            <p className="hidden print:block section-title">
               Our stock rotation procedure
             </p>
             <ol className="list-decimal pl-5 space-y-1.5">

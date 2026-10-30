@@ -165,14 +165,14 @@ export default function DeliveryLogPage() {
 
       <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Who checked it in?
           </h2>
           <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Supplier
           </h2>
           {(suppliers ?? []).length > 0 && (
@@ -206,7 +206,7 @@ export default function DeliveryLogPage() {
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Temperatures — fill in what applies
           </h2>
           <div className="grid grid-cols-3 gap-2 mb-3">
@@ -253,7 +253,7 @@ export default function DeliveryLogPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Condition checks
           </h2>
           <ToggleRow label="Packaging intact & clean" value={packagingOk} onChange={setPackagingOk} />
@@ -263,7 +263,7 @@ export default function DeliveryLogPage() {
 
         {!accepted && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+            <h2 className="section-title mb-2.5">
               Why was it rejected?
             </h2>
             <textarea maxLength={2000}
@@ -276,7 +276,7 @@ export default function DeliveryLogPage() {
         )}
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Invoice total (optional)
           </h2>
           <label className="flex items-center h-12 rounded-2xl border border-line bg-surface px-4 focus-within:border-brand">
@@ -295,7 +295,7 @@ export default function DeliveryLogPage() {
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Notes (optional)
           </h2>
           <textarea maxLength={2000}

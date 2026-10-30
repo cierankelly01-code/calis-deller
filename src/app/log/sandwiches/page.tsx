@@ -213,14 +213,14 @@ function SandwichLogForm() {
         </div>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             {mode === "made" ? "Who made them?" : "Who's putting them out?"}
           </h2>
           <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-1">
+          <h2 className="section-title mb-1">
             {mode === "made" ? "How many of each?" : "What's going out?"}
           </h2>
           <p className="text-sm text-ink-soft mb-3">
@@ -287,7 +287,7 @@ function SandwichLogForm() {
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2">
+          <h2 className="section-title mb-2">
             Today&apos;s special?
           </h2>
           <div className="flex gap-2">
@@ -318,7 +318,7 @@ function SandwichLogForm() {
 
         {mode === "put_out" && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-1">
+            <h2 className="section-title mb-1">
               Take them off after
             </h2>
             <p className="text-sm text-ink-soft mb-2.5">

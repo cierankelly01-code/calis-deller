@@ -315,7 +315,7 @@ export default function SandwichBoardPage() {
                       </div>
                     );
                   })}
-                  <p className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider">Who&apos;s taking them off?</p>
+                  <p className="section-title">Who&apos;s taking them off?</p>
                   <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
                   <div className="flex gap-2">
                     <button
@@ -341,7 +341,7 @@ export default function SandwichBoardPage() {
         })}
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             🧊 In the fridge — ready to go out <span className="text-ink-faint">({summary.inFridge})</span>
           </h2>
           {reserve.length === 0 ? (
@@ -361,7 +361,7 @@ export default function SandwichBoardPage() {
 
         {returns.length > 0 && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+            <h2 className="section-title mb-2.5">
               ❄️ Back in the fridge — sell chilled, never out again
             </h2>
             <div className="flex flex-wrap gap-2">

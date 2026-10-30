@@ -76,7 +76,7 @@ export default function HealthPage() {
           <>
             {loadError && <p role="alert" className="text-danger">Couldn&apos;t load the record. It needs the internet: itIt needs the internet (it&apos;s never stored on the iPad).apos;s kept on the server, not on the iPad.</p>}
             <section>
-              <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Off sick now</h2>
+              <h2 className="section-title mb-2.5">Off sick now</h2>
               {offNow.length === 0 ? <p className="text-ink-soft">Nobody.</p> : (
                 <div className="space-y-2">
                   {offNow.map((l) => (
@@ -120,7 +120,7 @@ export default function HealthPage() {
             )}
             {all.length > 0 && (
               <section>
-                <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Last 12 months</h2>
+                <h2 className="section-title mb-2.5">Last 12 months</h2>
                 <div className="space-y-1.5 text-sm">
                   {all.map((l) => (
                     <p key={l.id} className="rounded-xl bg-surface border border-line px-4 py-2.5">{formatDate(l.recorded_at)} · <b>{name(l.subject_id)}</b> · {l.event === "sent_home" ? "sent home" : "back to work (48 hours clear)"} · by {name(l.staff_id)}{l.note && ` · ${l.note}`}</p>

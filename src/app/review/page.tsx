@@ -102,7 +102,7 @@ export default function ReviewPage() {
               ))}
             </section>
             <section>
-              <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Anything changed in the last 4 weeks?</h2>
+              <h2 className="section-title mb-2.5">Anything changed in the last 4 weeks?</h2>
               <div className="flex flex-wrap gap-2">
                 {CHANGES.map((c) => {
                   const on = changes.includes(c.id);
@@ -118,7 +118,7 @@ export default function ReviewPage() {
               <textarea maxLength={2000} value={actions} onChange={(e) => setActions(e.target.value)} className="mt-1 w-full rounded-2xl border border-line bg-surface p-3.5 font-normal min-h-20 focus:outline-none focus:border-brand" />
             </label>
             <section>
-              <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Manager signing</h2>
+              <h2 className="section-title mb-2.5">Manager signing</h2>
               <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
             </section>
             {error && <p role="alert" className="text-danger">{error}</p>}
@@ -127,7 +127,7 @@ export default function ReviewPage() {
         )}
         {all.length > 0 && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Past reviews</h2>
+            <h2 className="section-title mb-2.5">Past reviews</h2>
             <div className="space-y-2">
               {all.map((r) => (
                 <div key={r.id} className={`rounded-xl border px-4 py-3 text-sm ${r.all_ok ? "bg-surface border-line" : "bg-gold-soft border-gold/50"}`}>

@@ -14,6 +14,8 @@ import { currentSignOffs, formatDate } from "@/lib/methods/records";
 import { useRememberedStaff } from "@/lib/staffMemory";
 import { queueEntry } from "@/lib/offline/outbox";
 import { syncOutbox } from "@/lib/offline/sync";
+import { methodIcon } from "@/lib/methods/icons";
+import { Icon, IconTile } from "@/components/ui/Icon";
 
 // One safe method, written for the person doing the job: numbered steps,
 // why it matters, what to do if it goes wrong, and how this shop does it.
@@ -32,6 +34,8 @@ export default function MethodPage({ params }: { params: Promise<{ id: string }>
   const [local, setLocal] = useState<MethodRecord[]>([]);
   const current = useMemo(() => currentSignOffs([...local, ...(records ?? [])]).get(id) ?? null, [local, records, id]);
   const [editing, setEditing] = useState(false);
+  // Tick each step as you do it: on screen only, nothing is saved.
+  const [ticked, setTicked] = useState<Set<number>>(new Set());
   const [ourWay, setOurWay] = useState("");
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
@@ -70,20 +74,23 @@ export default function MethodPage({ params }: { params: Promise<{ id: string }>
       <PageHeader title={method.title} backHref="/methods" />
       <div className="flex-1 px-4 py-5 max-w-2xl w-full mx-auto space-y-6">
         <div className="flex items-start gap-4">
-          <span className="text-5xl" aria-hidden>{method.emoji}</span>
-          <p className="text-lg text-ink leading-snug pt-1">{method.oneLine}</p>
+          <IconTile name={methodIcon(method.id, method.group)} size="lg" />
+          <p className="text-lg text-ink leading-snug pt-1.5">{method.oneLine}</p>
         </div>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Do this</h2>
+          <div className="flex items-end justify-between mb-2.5"><h2 className="section-title">Do this, in order</h2><p className="text-sm text-ink-soft">Tap each step when done</p></div>
           <ol className="space-y-2">
             {method.steps.map((step, i) => (
-              <li key={i} className="flex gap-3.5 rounded-2xl bg-surface border border-line px-4 py-3.5">
-                <span className="h-9 w-9 shrink-0 rounded-full bg-brand text-white grid place-items-center font-bold">{i + 1}</span>
-                <span className="text-[17px] leading-snug text-ink pt-1">{step}</span>
+              <li key={i}>
+                <button type="button" aria-pressed={ticked.has(i)} onClick={() => setTicked((t) => { const n = new Set(t); if (n.has(i)) n.delete(i); else n.add(i); return n; })} className={`w-full flex gap-3.5 rounded-2xl border px-4 py-3.5 text-left transition-colors ${ticked.has(i) ? "bg-brand-soft border-brand/30" : "bg-surface border-line"}`}>
+                  <span className={`h-9 w-9 shrink-0 rounded-full grid place-items-center font-bold ${ticked.has(i) ? "bg-brand text-white" : "bg-paper text-brand-deep border-2 border-brand/40"}`}>{ticked.has(i) ? <Icon name="check" size={18} strokeWidth={3} /> : i + 1}</span>
+                  <span className={`text-[17px] leading-snug pt-1 ${ticked.has(i) ? "text-ink-soft" : "text-ink"}`}>{step}</span>
+                </button>
               </li>
             ))}
           </ol>
+          {ticked.size === method.steps.length && <p className="mt-3 rounded-2xl bg-brand text-white px-4 py-3 font-bold flex items-center gap-2"><Icon name="check" strokeWidth={3} /> All steps done. Well done.</p>}
           {method.needsProduct && (
             <p className="mt-3 rounded-2xl bg-gold-soft border border-gold/50 px-4 py-3 text-sm text-ink">
               <b>Which product and how long to leave it on:</b> {current?.our_way ? "see “How we do it here” below." : "to be added by the manager (read the label: it must meet BS EN 1276 or BS EN 13697)."}
@@ -104,7 +111,7 @@ export default function MethodPage({ params }: { params: Promise<{ id: string }>
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">If it goes wrong</h2>
+          <h2 className="section-title mb-2.5">If it goes wrong</h2>
           <div className="space-y-2">
             {method.wrong.map((w, i) => (
               <div key={i} className="rounded-2xl bg-danger-soft border border-danger/20 px-4 py-3">
@@ -117,7 +124,7 @@ export default function MethodPage({ params }: { params: Promise<{ id: string }>
 
         {method.appCheck && (
           <Link href={method.appCheck.href} className="flex items-center justify-between rounded-2xl bg-brand px-5 py-4 text-white font-bold active:scale-[0.99] transition-transform">
-            Record it: {method.appCheck.label} <span aria-hidden>›</span>
+            <span className="flex items-center gap-2"><Icon name="check" size={20} /> Record it: {method.appCheck.label}</span> <Icon name="arrow" size={20} />
           </Link>
         )}
 

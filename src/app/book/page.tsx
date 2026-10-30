@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { Icon } from "@/components/ui/Icon";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
 import { useSite } from "@/lib/site/SiteContext";
@@ -26,7 +27,7 @@ export default function BookPage() {
     <div className="flex flex-col flex-1">
       <PageHeader title="The book" backHref="/inspector" />
       <div className="px-4 pt-4 max-w-2xl w-full mx-auto print:hidden">
-        <button type="button" onClick={() => window.print()} className="w-full h-14 rounded-2xl bg-brand text-white text-lg font-bold">🖨 Print or save as PDF</button>
+        <button type="button" onClick={() => window.print()} className="w-full h-14 rounded-2xl bg-brand text-white text-lg font-bold"><span className="inline-flex items-center gap-2"><Icon name="printer" />Print or save as PDF</span></button>
         <p className="mt-2 text-sm text-ink-soft text-center">Keep the printed copy in the shop. Print again after a method is signed off.</p>
       </div>
       <article className="flex-1 px-4 py-6 max-w-2xl w-full mx-auto space-y-8 print:max-w-none print:px-0 text-ink">
@@ -43,7 +44,7 @@ export default function BookPage() {
               const record = signed.get(m.id);
               return (
                 <div key={m.id} className="space-y-2 break-inside-avoid">
-                  <h3 className="text-xl font-bold">{m.emoji} {m.title}</h3>
+                  <h3 className="text-xl font-bold">{m.title}</h3>
                   <p className="text-ink-soft">{m.oneLine}</p>
                   <ol className="list-decimal pl-6 space-y-0.5">{m.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>
                   {m.needsProduct && !record?.our_way && <p className="text-sm">Product and contact time: ____________________________</p>}

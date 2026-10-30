@@ -117,7 +117,7 @@ export default function StockWeekPage() {
         )}
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">{site.short_name}</h2>
+          <h2 className="section-title mb-2.5">{site.short_name}</h2>
           <div className="grid grid-cols-2 gap-2">
             {stat("Sales", formatMoney(report.totals.revenue))}
             {stat("Profit", formatMoney(report.totals.profit), "text-brand-deep")}
@@ -164,7 +164,7 @@ export default function StockWeekPage() {
             )}
 
             <section>
-              <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Every line, best profit first</h2>
+              <h2 className="section-title mb-2.5">Every line, best profit first</h2>
               <div className="space-y-2">
                 {report.products.map((p) => (
                   <div key={p.key} className="rounded-2xl bg-surface border border-line px-4 py-3">
@@ -188,7 +188,7 @@ export default function StockWeekPage() {
             </section>
 
             <section>
-              <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Sold each day</h2>
+              <h2 className="section-title mb-2.5">Sold each day</h2>
               <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
                 <table className="w-full text-sm tabular-nums">
                   <thead>
@@ -219,7 +219,7 @@ export default function StockWeekPage() {
 
             {report.notes.length > 0 && (
               <section>
-                <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">What the days were like</h2>
+                <h2 className="section-title mb-2.5">What the days were like</h2>
                 <ul className="space-y-1 text-sm text-ink">
                   {report.notes.map((n) => (
                     <li key={n.date}><strong>{formatShortDay(n.date)}:</strong> {[...n.tags.map((t) => TAG_LABELS[t] ?? t), n.note ? `“${n.note}”` : ""].filter(Boolean).join(" · ")}</li>
@@ -230,7 +230,7 @@ export default function StockWeekPage() {
 
             {spend.length > 0 && (
               <section>
-                <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Invoices by supplier</h2>
+                <h2 className="section-title mb-2.5">Invoices by supplier</h2>
                 <ul className="space-y-1 text-sm text-ink">
                   {spend.map((s) => <li key={s.supplier}><strong>{s.supplier}</strong> · {formatMoney(s.total)} ({s.deliveries} deliver{s.deliveries === 1 ? "y" : "ies"})</li>)}
                 </ul>

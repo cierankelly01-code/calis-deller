@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Icon } from "@/components/ui/Icon";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StaffTilePicker } from "@/components/ui/StaffTilePicker";
@@ -108,12 +109,12 @@ export default function CoolingPage() {
         </div>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Who&apos;s checking?</h2>
+          <h2 className="section-title mb-2.5">Who&apos;s checking?</h2>
           <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">On the clock now</h2>
+          <h2 className="section-title mb-2.5">On the clock now</h2>
           {loading && batches.length === 0 && <p className="text-ink-faint">Loading…</p>}
           {!loading && batches.length === 0 && (
             <p className="rounded-2xl bg-surface border border-line p-4 text-ink-soft">Nothing cooling. When a batch comes out of the oven, do a hot food check and leave “Start the 2-hour clock” on.</p>
@@ -144,10 +145,10 @@ export default function CoolingPage() {
                   )}
                   {!open && (
                     <div className="mt-3 grid grid-cols-2 gap-2">
-                      <button type="button" disabled={!staffId} onClick={() => start({ clientId: batch.clientId, kind: "probe" }, batch)} className="h-12 rounded-xl bg-surface border border-line font-semibold disabled:opacity-40">🌡️ Probe it</button>
-                      <button type="button" disabled={!staffId} onClick={() => start({ clientId: batch.clientId, kind: "done", outcome: "chilled" }, batch)} className="h-12 rounded-xl bg-brand text-white font-semibold disabled:opacity-40">❄️ Into chilled counter</button>
-                      <button type="button" disabled={!staffId} onClick={() => start({ clientId: batch.clientId, kind: "done", outcome: "sold_out" }, batch)} className="h-12 rounded-xl bg-surface border border-line font-semibold disabled:opacity-40">✓ All sold</button>
-                      <button type="button" disabled={!staffId} onClick={() => start({ clientId: batch.clientId, kind: "done", outcome: "binned" }, batch)} className="h-12 rounded-xl bg-surface border border-danger/30 text-danger font-semibold disabled:opacity-40">🗑 Binned</button>
+                      <button type="button" disabled={!staffId} onClick={() => start({ clientId: batch.clientId, kind: "probe" }, batch)} className="h-12 rounded-xl bg-surface border border-line font-semibold disabled:opacity-40"><span className="inline-flex items-center gap-2"><Icon name="thermometer" size={20} />Probe it</span></button>
+                      <button type="button" disabled={!staffId} onClick={() => start({ clientId: batch.clientId, kind: "done", outcome: "chilled" }, batch)} className="h-12 rounded-xl bg-brand text-white font-semibold disabled:opacity-40"><span className="inline-flex items-center gap-2"><Icon name="snow" size={20} />Into chilled counter</span></button>
+                      <button type="button" disabled={!staffId} onClick={() => start({ clientId: batch.clientId, kind: "done", outcome: "sold_out" }, batch)} className="h-12 rounded-xl bg-surface border border-line font-semibold disabled:opacity-40"><span className="inline-flex items-center gap-2"><Icon name="check" size={20} />All sold</span></button>
+                      <button type="button" disabled={!staffId} onClick={() => start({ clientId: batch.clientId, kind: "done", outcome: "binned" }, batch)} className="h-12 rounded-xl bg-surface border border-danger/30 text-danger font-semibold disabled:opacity-40"><span className="inline-flex items-center gap-2"><Icon name="bin" size={20} />Binned</span></button>
                     </div>
                   )}
                   {!staffId && !open && <p className="mt-2 text-sm text-ink-soft">Tap your name above first.</p>}
@@ -192,7 +193,7 @@ export default function CoolingPage() {
 
         {done.length > 0 && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Finished today</h2>
+            <h2 className="section-title mb-2.5">Finished today</h2>
             <div className="space-y-2">
               {done.map((b) => (
                 <div key={b.clientId} className={`rounded-2xl border px-4 py-3 text-sm ${b.lateBy > 0 ? "bg-danger-soft border-danger/30" : "bg-surface border-line"}`}>

@@ -219,7 +219,7 @@ export default function StockCountPage() {
 
       <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Who&apos;s counting?</h2>
+          <h2 className="section-title mb-2.5">Who&apos;s counting?</h2>
           <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
         </section>
 
@@ -246,7 +246,7 @@ export default function StockCountPage() {
 
         {groups.map((group) => (
           <section key={group.title}>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">{group.title}</h2>
+            <h2 className="section-title mb-2.5">{group.title}</h2>
             <div className="space-y-2.5">
               {group.rows.map(({ line, entered, invalid, sold }) => {
                 const last = lastCounts.get(line.productId);
@@ -308,7 +308,7 @@ export default function StockCountPage() {
 
         {tracked.length > 0 && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">What was today like? (optional)</h2>
+            <h2 className="section-title mb-2.5">What was today like? (optional)</h2>
             <div className="flex flex-wrap gap-2 mb-3">
               {Object.entries(TAG_LABELS).map(([tag, label]) => {
                 const on = draft.tags.includes(tag);

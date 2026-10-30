@@ -128,14 +128,14 @@ export default function CookingLogPage() {
       <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
         <div className="flex flex-wrap gap-2"><HowLink method={checkType === "cooking" ? "cooking-safely" : checkType === "reheating" ? "reheating" : "hot-holding"} /></div>
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Who&apos;s checking?
           </h2>
           <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             What kind of check?
           </h2>
           <div className="grid grid-cols-3 gap-2.5">
@@ -164,7 +164,7 @@ export default function CookingLogPage() {
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Which product?
           </h2>
           {(products ?? []).length > 0 && (
@@ -198,7 +198,7 @@ export default function CookingLogPage() {
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             How many items?
           </h2>
           <div className="flex items-center justify-center gap-3">
@@ -225,7 +225,7 @@ export default function CookingLogPage() {
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Core temperature {check.wording}
           </h2>
           <NumberPad value={temp} onChange={setTemp} suffix="°C" />
@@ -258,7 +258,7 @@ export default function CookingLogPage() {
 
         {needsCorrectiveAction && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+            <h2 className="section-title mb-2.5">
               What did you do about it?
             </h2>
             <textarea maxLength={2000}

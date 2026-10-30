@@ -122,7 +122,7 @@ export default function TrainingPage() {
         {loadError && <p role="alert" className="text-danger">Couldn&apos;t load training records. They need the internet: theyThey need the internet (they&apos;re never stored on the iPad).apos;re kept on the server, not on the iPad.</p>}
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Manager recording</h2>
+          <h2 className="section-title mb-2.5">Manager recording</h2>
           <StaffTilePicker staff={staff ?? []} selectedId={recorderId} onSelect={setRecorderId} />
         </section>
 

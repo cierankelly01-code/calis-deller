@@ -91,7 +91,7 @@ export default function StockSettingsPage() {
           Tap a product to track it on the close count. Start with the fresh lines and the big earners — not every packet of crisps.
           Products are added in the <Link href="/allergens" className="text-brand font-semibold underline">Allergen Guide</Link>. Prices are the same in both shops.
         </p>
-        <p className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider">{trackedCount} tracked</p>
+        <p className="section-title">{trackedCount} tracked</p>
 
         {loading && !products && <p className="text-ink-faint">Loading…</p>}
         {!loading && (products ?? []).length === 0 && (
@@ -102,7 +102,7 @@ export default function StockSettingsPage() {
 
         {groups.map((group) => (
           <section key={group.title}>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">{group.title}</h2>
+            <h2 className="section-title mb-2.5">{group.title}</h2>
             <div className="space-y-2">
               {group.items.map((product) => {
                 const line = lineFor(product.id);

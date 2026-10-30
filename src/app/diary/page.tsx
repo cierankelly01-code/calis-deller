@@ -107,7 +107,7 @@ async function fetchDay(siteId: string, dateStr: string): Promise<DayData> {
 function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
     <section>
-      <h2 className="text-sm font-semibold text-ink-soft uppercase tracking-wide mb-2">
+      <h2 className="section-title mb-2">
         {title} <span className="text-ink-faint">({count})</span>
       </h2>
       {count === 0 ? <p className="text-sm text-ink-faint">No records.</p> : <div className="space-y-2">{children}</div>}
@@ -150,7 +150,7 @@ function ExportCard() {
 
   return (
     <section className="rounded-xl bg-surface border border-line p-4 space-y-3 print:hidden">
-      <h2 className="text-sm font-semibold text-ink-soft uppercase tracking-wide">
+      <h2 className="section-title">
         📋 EHO export
       </h2>
       <div className="flex items-center gap-2">

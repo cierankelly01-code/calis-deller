@@ -151,14 +151,14 @@ export default function FridgeLogPage() {
 
       <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Who&apos;s doing the round?
           </h2>
           <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Which check?
           </h2>
           <div className="grid grid-cols-2 gap-2.5">
@@ -181,7 +181,7 @@ export default function FridgeLogPage() {
 
         <section>
           <div className="flex items-baseline justify-between mb-2.5">
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider">
+            <h2 className="section-title">
               Which unit?
             </h2>
             <span className="text-sm text-ink-soft">
@@ -236,7 +236,7 @@ export default function FridgeLogPage() {
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Reading{selectedUnit ? ` — ${selectedUnit.name}` : ""}
           </h2>
           <NumberPad value={reading} onChange={setReading} allowNegative suffix="°C" />
@@ -252,7 +252,7 @@ export default function FridgeLogPage() {
 
         {needsCorrectiveAction && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+            <h2 className="section-title mb-2.5">
               What did you do about it?
             </h2>
             <textarea maxLength={2000}

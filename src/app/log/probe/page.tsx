@@ -89,14 +89,14 @@ export default function ProbeCalibrationPage() {
 
       <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Who&apos;s checking the probe?
           </h2>
           <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Method
           </h2>
           <div className="grid grid-cols-2 gap-2.5">
@@ -121,7 +121,7 @@ export default function ProbeCalibrationPage() {
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Probe reading
           </h2>
           <NumberPad value={reading} onChange={setReading} allowNegative suffix="°C" />
@@ -139,7 +139,7 @@ export default function ProbeCalibrationPage() {
 
         {pass === false && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+            <h2 className="section-title mb-2.5">
               What did you do about it?
             </h2>
             <textarea maxLength={2000}

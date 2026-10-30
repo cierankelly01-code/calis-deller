@@ -122,7 +122,7 @@ export default function StockPage() {
 
         {tracked.length > 0 && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-1">Run out of something?</h2>
+            <h2 className="section-title mb-1">Run out of something?</h2>
             <p className="text-sm text-ink-soft mb-3">Tap it when it sells out. It shows where you could have sold more.</p>
             <div className="mb-3">
               <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />

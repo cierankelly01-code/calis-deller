@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { IconTile, type IconName } from "@/components/ui/Icon";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { HowLink } from "@/components/ui/HowLink";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
@@ -18,7 +19,7 @@ function dateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-const ICON: Record<TraceEvent["kind"], string> = { delivery: "🚚", cooking: "🍳", cooling: "⏱", counter: "🥩", sandwich: "🥪" };
+const ICON: Record<TraceEvent["kind"], IconName> = { delivery: "truck", cooking: "flame", cooling: "clock", counter: "meat", sandwich: "sandwich" };
 
 async function loadTrace(siteId: string, from: string, to: string, product: string): Promise<TraceEvent[]> {
   const start = new Date(`${from}T00:00:00`).toISOString();
@@ -76,7 +77,7 @@ export default function TracePage() {
           <div className="mt-3"><HowLink method="product-recall" label="Complaint or recall: what to do" /></div>
         </div>
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">What was it?</h2>
+          <h2 className="section-title mb-2.5">What was it?</h2>
           <div className="flex flex-wrap gap-2 mb-3">
             {(products ?? []).slice(0, 40).map((p) => (
               <button key={p.id} type="button" onClick={() => setProduct(product === p.name ? "" : p.name)} className={`h-11 rounded-full px-4 font-semibold ${product === p.name ? "bg-brand text-white" : "bg-surface border border-line"}`}>{p.name}</button>
@@ -99,7 +100,7 @@ export default function TracePage() {
                 <li key={i}>
                   {header && <p className="mt-4 mb-1.5 font-bold text-ink">{header}</p>}
                   <div className={`flex gap-3 rounded-xl border px-4 py-3 ${e.flag ? "bg-danger-soft border-danger/30" : "bg-surface border-line"}`}>
-                    <span className="text-xl" aria-hidden>{ICON[e.kind]}</span>
+                    <IconTile name={ICON[e.kind]} size="sm" tone={e.flag ? "red" : "green"} />
                     <span className="flex-1 text-sm">
                       <span className="block font-semibold text-ink">{new Date(e.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} · {e.title}</span>
                       {e.detail && <span className="block text-ink-soft">{e.detail}</span>}

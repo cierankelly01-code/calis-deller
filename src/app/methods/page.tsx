@@ -8,6 +8,8 @@ import { useSite } from "@/lib/site/SiteContext";
 import { fetchMethodRecords } from "@/lib/data/queries";
 import { METHOD_GROUPS, SAFE_METHODS } from "@/lib/methods/content";
 import { currentSignOffs } from "@/lib/methods/records";
+import { methodIcon } from "@/lib/methods/icons";
+import { Icon, IconTile } from "@/components/ui/Icon";
 
 // The book: every safe method, grouped as in the SFBB pack, with a search
 // box for "how do I…?" and a tick for each one this shop has signed off.
@@ -26,9 +28,9 @@ export default function MethodsPage() {
       <PageHeader title="How to do it" />
       <div className="flex-1 px-4 py-5 max-w-2xl w-full mx-auto space-y-6">
         <div className="rounded-2xl bg-brand-soft border border-brand/20 px-5 py-4">
-          <p className="font-bold text-brand-deep">Our safe methods</p>
+          <p className="font-bold text-brand-deep text-lg">How we do things safely</p>
           <p className="mt-1 text-sm text-ink-soft">
-            Step-by-step, from the official Safer Food, Better Business pack. Tap one to see how. {signed.size} of {SAFE_METHODS.length} signed off for {site.short_name}.
+            Step by step, from the official Safer Food, Better Business pack. Pick the job you&apos;re doing. {signed.size} of {SAFE_METHODS.length} signed off for {site.short_name}.
           </p>
           <Link href="/book" className="mt-3 inline-block text-sm font-semibold text-brand underline">Print the whole book</Link>
         </div>
@@ -44,16 +46,16 @@ export default function MethodsPage() {
           if (list.length === 0) return null;
           return (
             <section key={group.id}>
-              <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">{group.title}</h2>
+              <h2 className="section-title mb-2.5">{group.title}</h2>
               <div className="space-y-2">
                 {list.map((m) => (
                   <Link key={m.id} href={`/methods/${m.id}`} className="flex items-center gap-3.5 rounded-2xl bg-surface border border-line px-4 py-3.5 active:scale-[0.99] transition-transform">
-                    <span className="text-2xl" aria-hidden>{m.emoji}</span>
+                    <IconTile name={methodIcon(m.id, m.group)} size="sm" />
                     <span className="flex-1 min-w-0">
                       <span className="block font-bold text-ink">{m.title}</span>
                       <span className="block text-sm text-ink-soft truncate">{m.oneLine}</span>
                     </span>
-                    {signed.has(m.id) ? <span className="text-brand font-bold" aria-label="Signed off">✓</span> : <span className="text-ink-faint text-xl" aria-hidden>›</span>}
+                    {signed.has(m.id) ? <span className="text-brand" role="img" aria-label="Signed off"><Icon name="check" size={20} strokeWidth={2.5} /></span> : <Icon name="chevron" className="text-ink-faint" size={20} />}
                   </Link>
                 ))}
               </div>

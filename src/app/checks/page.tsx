@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StaffTilePicker } from "@/components/ui/StaffTilePicker";
 import { SaveBar } from "@/components/ui/SaveBar";
@@ -19,10 +20,10 @@ import type { SiteCheckKind } from "@/types/database";
 // signs of pests (weekly) and anything broken (whenever it happens). A
 // problem must say what was done about it, like every other check.
 
-const KINDS: Record<SiteCheckKind, { emoji: string; title: string; ask: string; yes: string; no: string; method: string; placeholder: string }> = {
-  hand_wash: { emoji: "🧼", title: "Hand sink", ask: "Is there soap, hot water and paper towels, and nothing else in the sink?", yes: "Yes, all OK", no: "No, there's a problem", method: "hand-washing", placeholder: "e.g. no paper towels: refilled from the store room" },
-  pest: { emoji: "🐭", title: "Pests", ask: "Any droppings, gnawed packs, insects or holes where pests could get in?", yes: "No signs", no: "Yes, I found something", method: "pest-control", placeholder: "e.g. droppings behind the flour: binned the open bags, cleaned, called pest control" },
-  maintenance: { emoji: "🔧", title: "Something broken", ask: "Is everything working: fridges, sinks, doors, lights, surfaces?", yes: "All working", no: "Something's broken", method: "maintenance", placeholder: "e.g. fridge door seal split: told the manager, food moved to the other fridge" },
+const KINDS: Record<SiteCheckKind, { icon: IconName; title: string; ask: string; yes: string; no: string; method: string; placeholder: string }> = {
+  hand_wash: { icon: "drop", title: "Hand sink", ask: "Is there soap, hot water and paper towels, and nothing else in the sink?", yes: "Yes, all OK", no: "No, there's a problem", method: "hand-washing", placeholder: "e.g. no paper towels: refilled from the store room" },
+  pest: { icon: "bug", title: "Pests", ask: "Any droppings, gnawed packs, insects or holes where pests could get in?", yes: "No signs", no: "Yes, I found something", method: "pest-control", placeholder: "e.g. droppings behind the flour: binned the open bags, cleaned, called pest control" },
+  maintenance: { icon: "wrench", title: "Something broken", ask: "Is everything working: fridges, sinks, doors, lights, surfaces?", yes: "All working", no: "Something's broken", method: "maintenance", placeholder: "e.g. fridge door seal split: told the manager, food moved to the other fridge" },
 };
 
 function initialKind(): SiteCheckKind {
@@ -79,12 +80,12 @@ export default function SiteChecksPage() {
         <div role="tablist" className="grid grid-cols-3 gap-2">
           {(Object.keys(KINDS) as SiteCheckKind[]).map((k) => (
             <button key={k} type="button" role="tab" aria-selected={k === kind} onClick={() => { setKind(k); setOk(null); setAction(""); }} className={`py-3 rounded-2xl font-semibold ${k === kind ? "bg-brand text-white" : "bg-surface border border-line text-ink"}`}>
-              <span className="block text-2xl" aria-hidden>{KINDS[k].emoji}</span>{KINDS[k].title}
+              <span className="flex justify-center mb-1"><Icon name={KINDS[k].icon} size={26} /></span>{KINDS[k].title}
             </button>
           ))}
         </div>
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Who&apos;s checking?</h2>
+          <h2 className="section-title mb-2.5">Who&apos;s checking?</h2>
           <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
         </section>
         <section className="space-y-3">
@@ -98,7 +99,7 @@ export default function SiteChecksPage() {
         </section>
         {ok === false && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">What did you do about it?</h2>
+            <h2 className="section-title mb-2.5">What did you do about it?</h2>
             <textarea maxLength={2000} value={action} onChange={(e) => setAction(e.target.value)} placeholder={info.placeholder} className="w-full rounded-2xl border border-line bg-surface p-3.5 text-base min-h-24 placeholder:text-ink-faint focus:outline-none focus:border-brand" />
             <p className="mt-2 text-sm text-ink-soft">Tell the manager straight away.</p>
           </section>
@@ -106,7 +107,7 @@ export default function SiteChecksPage() {
         {error && <p role="alert" className="text-danger">{error}</p>}
         {recent.length > 0 && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Last checks</h2>
+            <h2 className="section-title mb-2.5">Last checks</h2>
             <div className="space-y-2">
               {recent.map((c) => (
                 <div key={c.id} className={`rounded-xl border px-4 py-2.5 text-sm ${c.ok ? "bg-surface border-line" : "bg-danger-soft border-danger/30"}`}>

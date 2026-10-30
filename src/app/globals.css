@@ -72,3 +72,16 @@ a {
 .saved-pop {
   animation: saved-pop 0.18s ease-out;
 }
+
+/* Section headings read like a question to the person holding the iPad
+   ("Who's checking?"), not a tiny shouty label. */
+.section-title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  line-height: 1.3;
+}
+
+@media print {
+  .section-title { font-size: 1rem; }
+}

@@ -191,14 +191,14 @@ export default function CounterPutOutPage() {
 
       <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Who&apos;s putting it out?
           </h2>
           <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Which serve-over?
           </h2>
           {serveOvers.length === 0 ? (
@@ -230,7 +230,7 @@ export default function CounterPutOutPage() {
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             What&apos;s going out?
           </h2>
           {(products ?? []).length > 0 && (
@@ -280,7 +280,7 @@ export default function CounterPutOutPage() {
         )}
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-1">
+          <h2 className="section-title mb-1">
             Sell within how many days once open?
           </h2>
           <p className="text-sm text-ink-soft mb-2.5">Day it goes out counts as day 1. Set per product in the Allergen Guide.</p>
@@ -304,7 +304,7 @@ export default function CounterPutOutPage() {
 
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2">
+            <h2 className="section-title mb-2">
               Pack use-by (if it has one)
             </h2>
             <input
@@ -319,7 +319,7 @@ export default function CounterPutOutPage() {
             />
           </div>
           <div>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2">
+            <h2 className="section-title mb-2">
               Batch code (optional)
             </h2>
             <input
@@ -335,7 +335,7 @@ export default function CounterPutOutPage() {
 
         {(deliveries ?? []).length > 0 && (
           <section>
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-1">
+            <h2 className="section-title mb-1">
               Which delivery did it come in on? (optional)
             </h2>
             <p className="text-sm text-ink-soft mb-2.5">

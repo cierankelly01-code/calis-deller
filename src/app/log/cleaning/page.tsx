@@ -95,7 +95,7 @@ export default function CleaningLogPage() {
 
       <div className="flex-1 px-4 py-5 space-y-7 max-w-2xl w-full mx-auto">
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Which clean?
           </h2>
           <div className="grid grid-cols-2 gap-2.5">
@@ -117,7 +117,7 @@ export default function CleaningLogPage() {
         </section>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">
+          <h2 className="section-title mb-2.5">
             Who&apos;s cleaning?
           </h2>
           <StaffTilePicker staff={staff ?? []} selectedId={staffId} onSelect={setStaffId} />
@@ -125,7 +125,7 @@ export default function CleaningLogPage() {
 
         <section>
           <div className="flex items-baseline justify-between mb-2.5">
-            <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider">
+            <h2 className="section-title">
               Tasks — tap when done
             </h2>
             <span className="text-sm text-ink-soft">

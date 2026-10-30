@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Icon } from "@/components/ui/Icon";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useUser } from "@/components/auth/AuthBoundary";
@@ -69,14 +70,14 @@ export default function InspectorPage() {
         </section>
 
         <Link href="/methods" className={card}>
-          <span><span className="block font-bold text-ink">📘 Our safe methods</span><span className="block text-sm text-ink-soft">{progress.signed} of {progress.total} signed off for {site.short_name} · step by step for staff</span></span><span aria-hidden className="text-ink-faint text-xl">›</span>
+          <span><span className="block font-bold text-ink"><span className="inline-flex items-center gap-2"><Icon name="book" size={20} className="text-brand" />Our safe methods</span></span><span className="block text-sm text-ink-soft">{progress.signed} of {progress.total} signed off for {site.short_name} · step by step for staff</span></span><Icon name="chevron" className="text-ink-faint" />
         </Link>
         <Link href="/book" className={card}>
-          <span><span className="block font-bold text-ink">🖨 Print the book</span><span className="block text-sm text-ink-soft">All methods with our own way of working, contacts and suppliers</span></span><span aria-hidden className="text-ink-faint text-xl">›</span>
+          <span><span className="block font-bold text-ink"><span className="inline-flex items-center gap-2"><Icon name="printer" size={20} className="text-brand" />Print the book</span></span><span className="block text-sm text-ink-soft">All methods with our own way of working, contacts and suppliers</span></span><Icon name="chevron" className="text-ink-faint" />
         </Link>
 
         <section>
-          <h2 className="text-[13px] font-semibold text-ink-soft uppercase tracking-wider mb-2.5">Last 4 weeks</h2>
+          <h2 className="section-title mb-2.5">Last 4 weeks</h2>
           {error && !tallies && <p className="text-danger">Needs the internet to count the records.</p>}
           <div className="rounded-2xl bg-surface border border-line divide-y divide-line">
             {(tallies ?? []).map((t) => (
@@ -90,19 +91,19 @@ export default function InspectorPage() {
         </section>
 
         <Link href="/trace" className={card}>
-          <span><span className="block font-bold text-ink">🔎 Trace a batch</span><span className="block text-sm text-ink-soft">Any product: cooked, cooled, counter, sold or binned</span></span><span aria-hidden className="text-ink-faint text-xl">›</span>
+          <span><span className="block font-bold text-ink"><span className="inline-flex items-center gap-2"><Icon name="search" size={20} className="text-brand" />Trace a batch</span></span><span className="block text-sm text-ink-soft">Any product: cooked, cooled, counter, sold or binned</span></span><Icon name="chevron" className="text-ink-faint" />
         </Link>
         <Link href="/allergens" className={card}>
-          <span><span className="block font-bold text-ink">⚠️ Allergen guide</span><span className="block text-sm text-ink-soft">The 14 allergens for every product we sell</span></span><span aria-hidden className="text-ink-faint text-xl">›</span>
+          <span><span className="block font-bold text-ink"><span className="inline-flex items-center gap-2"><Icon name="alert" size={20} className="text-brand" />Allergen guide</span></span><span className="block text-sm text-ink-soft">The 14 allergens for every product we sell</span></span><Icon name="chevron" className="text-ink-faint" />
         </Link>
         <Link href={user?.role === "manager" ? "/training" : "/inspector"} className={card} aria-disabled={user?.role !== "manager"}>
-          <span><span className="block font-bold text-ink">🎓 Staff training and certificates</span><span className="block text-sm text-ink-soft">{user?.role === "manager" ? "Each person's certificate and the methods they've been shown" : "Private: the manager signs in to show this"}</span></span><span aria-hidden className="text-ink-faint text-xl">›</span>
+          <span><span className="block font-bold text-ink"><span className="inline-flex items-center gap-2"><Icon name="cap" size={20} className="text-brand" />Staff training and certificates</span></span><span className="block text-sm text-ink-soft">{user?.role === "manager" ? "Each person's certificate and the methods they've been shown" : "Private: the manager signs in to show this"}</span></span><Icon name="chevron" className="text-ink-faint" />
         </Link>
         <Link href="/review" className={card}>
-          <span><span className="block font-bold text-ink">🗓 4-weekly reviews</span><span className="block text-sm text-ink-soft">{lastReview ? `Last one ${formatDate(lastReview.recorded_at)}` : "None yet"}</span></span><span aria-hidden className="text-ink-faint text-xl">›</span>
+          <span><span className="block font-bold text-ink"><span className="inline-flex items-center gap-2"><Icon name="calendar" size={20} className="text-brand" />4-weekly reviews</span></span><span className="block text-sm text-ink-soft">{lastReview ? `Last one ${formatDate(lastReview.recorded_at)}` : "None yet"}</span></span><Icon name="chevron" className="text-ink-faint" />
         </Link>
         <Link href="/health" className={card}>
-          <span><span className="block font-bold text-ink">🤒 Fit for work</span><span className="block text-sm text-ink-soft">Our sickness rule and return-to-work record</span></span><span aria-hidden className="text-ink-faint text-xl">›</span>
+          <span><span className="block font-bold text-ink"><span className="inline-flex items-center gap-2"><Icon name="ill" size={20} className="text-brand" />Fit for work</span></span><span className="block text-sm text-ink-soft">Our sickness rule and return-to-work record</span></span><Icon name="chevron" className="text-ink-faint" />
         </Link>
 
         <section className="rounded-2xl bg-surface border border-line px-5 py-4">
