@@ -462,3 +462,17 @@ export async function fetchRecentCooking(siteId: string): Promise<{ product_id: 
   if (error) throw error;
   return data ?? [];
 }
+
+export type InductionLog = { id: string; staff_id: string; method_id: string; recorded_at: string };
+
+// Every "read and understood" this shop has recorded.
+export async function fetchInductions(siteId: string): Promise<InductionLog[]> {
+  const { data, error } = await supabase
+    .from("induction_logs")
+    .select("id, staff_id, method_id, recorded_at")
+    .eq("site_id", siteId)
+    .order("recorded_at", { ascending: false })
+    .limit(2000);
+  if (error) throw error;
+  return data ?? [];
+}

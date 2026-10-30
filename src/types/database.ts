@@ -288,6 +288,8 @@ export type ReviewLogRow = LogMeta & {
 export type SiteCheckKind = "pest" | "hand_wash" | "maintenance";
 export type SiteCheckLogRow = LogMeta & { kind: SiteCheckKind; ok: boolean; corrective_action: string | null };
 
+export type InductionLogRow = LogMeta & { method_id: string };
+
 export type ContactRow = {
   id: string;
   site_id: string;
@@ -354,6 +356,7 @@ export type Database = {
       health_logs: TableDef<HealthLogRow, "client_id" | "staff_id" | "subject_id" | "event" | "recorded_at">;
       review_logs: TableDef<ReviewLogRow, "client_id" | "staff_id" | "all_ok" | "recorded_at">;
       site_check_logs: TableDef<SiteCheckLogRow, "client_id" | "staff_id" | "kind" | "ok" | "recorded_at">;
+      induction_logs: TableDef<InductionLogRow, "client_id" | "staff_id" | "method_id" | "recorded_at">;
       food_log_contacts: TableDef<ContactRow, "name" | "site_id">;
     };
     Views: Record<string, never>;

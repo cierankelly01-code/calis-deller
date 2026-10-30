@@ -1,6 +1,6 @@
 export type AppRole = 'staff' | 'manager';
 export const configTables = ['sites', 'staff', 'fridge_units', 'suppliers', 'products', 'cleaning_tasks', 'stock_lines', 'food_log_contacts'];
-export const logTables = ['fridge_temp_logs', 'cooking_logs', 'delivery_logs', 'cleaning_logs', 'probe_calibration_logs', 'counter_stock_logs', 'ambient_display_logs', 'stock_logs', 'hot_batch_logs', 'method_records', 'training_records', 'health_logs', 'review_logs', 'site_check_logs'];
+export const logTables = ['fridge_temp_logs', 'cooking_logs', 'delivery_logs', 'cleaning_logs', 'probe_calibration_logs', 'counter_stock_logs', 'ambient_display_logs', 'stock_logs', 'hot_batch_logs', 'method_records', 'training_records', 'health_logs', 'review_logs', 'site_check_logs', 'induction_logs'];
 // Personal data: training (certificates) and health records are for managers
 // only, to read and to write. Signing off methods and reviews is a manager's job.
 export const managerReadTables = ['training_records', 'health_logs'];
@@ -60,6 +60,7 @@ const fields: Record<string, Record<string, Rule>> = {
   training_records:{...log,trainee_id:uuid,kind:oneOf('certificate','method','induction','refresher'),topic:text(200,true),trained_on:date,expires_on:optional(date),certificate_path:optional(v=>typeof v==='string'&&CERTIFICATE_PATH.test(v)),note},
   health_logs:{...log,subject_id:uuid,event:oneOf('sent_home','cleared'),symptom_free_48h:boolean,note},
   review_logs:{...log,changes:v=>Array.isArray(v)&&v.length<=REVIEW_CHANGES.length&&v.every(oneOf(...REVIEW_CHANGES))&&new Set(v).size===v.length,all_ok:boolean,problems:note,actions:note},
+  induction_logs:{...log,method_id:v=>typeof v==='string'&&/^[a-z0-9-]{1,60}$/.test(v)},
   site_check_logs:{...log,kind:oneOf('pest','hand_wash','maintenance'),ok:boolean,corrective_action:note},
 };
 // Log rows carry no site_id: the database derives it from the staff member.
@@ -76,7 +77,7 @@ const required: Record<string,string[]> = {
   food_log_contacts:['name','site_id'],
   hot_batch_logs:['event','product_name'],method_records:['method_id'],
   training_records:['trainee_id','kind','topic','trained_on'],health_logs:['subject_id','event'],
-  review_logs:['all_ok'],site_check_logs:['kind','ok'],
+  review_logs:['all_ok'],site_check_logs:['kind','ok'],induction_logs:['method_id'],
 };
 
 export function validateWrite(table: string, method: string, input: unknown): Record<string,unknown> {

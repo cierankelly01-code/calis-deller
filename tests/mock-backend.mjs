@@ -19,7 +19,7 @@ const tables={
   fridge_units:[{id:unitId,site_id:siteId,name:'Test fridge',unit_type:'fridge',target_min_c:1,target_max_c:5,active:true,sort_order:1}],
   cleaning_tasks:[{id:taskId,site_id:siteId,name:'Test worktops',session:'both',active:true,sort_order:1}],
   suppliers:[],products:[],fridge_temp_logs:[],cooking_logs:[],delivery_logs:[],cleaning_logs:[],probe_calibration_logs:[],counter_stock_logs:[],ambient_display_logs:[],stock_lines:[],stock_logs:[],
-  hot_batch_logs:[],method_records:[],training_records:[],health_logs:[],review_logs:[],site_check_logs:[],food_log_contacts:[],
+  hot_batch_logs:[],method_records:[],training_records:[],health_logs:[],review_logs:[],site_check_logs:[],induction_logs:[],food_log_contacts:[],
 };
 function sessionFor(role) {
   const id=role==='manager'?'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa':'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';

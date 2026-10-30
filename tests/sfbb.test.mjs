@@ -113,3 +113,22 @@ test('Postgres: cooling clock, manager-only training and health, reviews, checks
     assert.equal(bucket.public,false,'the certificate bucket is private');
   } finally {await db.close();}
 });
+
+test('Postgres: induction confirmations are append-only, per shop, readable by staff',async()=>{
+  const db=await migratedDb();
+  try {
+    const [stratford]=(await db.query('select id from sites order by sort_order')).rows.map(r=>r.id);
+    const user=randomUUID(),sessionId=randomUUID(),person=randomUUID();
+    await db.query('insert into auth.users(id,raw_app_meta_data) values($1,$2)',[user,JSON.stringify({food_log_role:'staff'})]);
+    await db.query('insert into auth.sessions values($1,$2)',[sessionId,user]);
+    await db.query("select set_config('request.jwt.claim.sub',$1,false),set_config('request.jwt.claim.session_id',$2,false)",[user,sessionId]);
+    await db.query('insert into staff(id,name,site_id) values($1,$2,$3)',[person,'Staff A',stratford]);
+    await db.exec('set role authenticated');
+    await db.query("insert into induction_logs(client_id,staff_id,method_id,recorded_at) values($1,$2,'hand-washing',now())",[randomUUID(),person]);
+    const row=(await db.query('select site_id,authenticated_user_id from induction_logs')).rows[0];
+    assert.equal(row.site_id,stratford);assert.equal(row.authenticated_user_id,user,'stamped with the signed-in account');
+    await assert.rejects(db.query("insert into induction_logs(client_id,staff_id,method_id,recorded_at) values($1,$2,'Not OK',now())",[randomUUID(),person]),/check constraint/);
+    await assert.rejects(db.query("update induction_logs set method_id='x'"),/permission denied/);
+    await assert.rejects(db.query('delete from induction_logs'),/permission denied/);
+  } finally {await db.close();}
+});

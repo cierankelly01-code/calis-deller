@@ -8,7 +8,8 @@ import { useUser } from "@/components/auth/AuthBoundary";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
 import { useSite } from "@/lib/site/SiteContext";
 import { supabase } from "@/lib/supabase/client";
-import { fetchActiveSuppliers, fetchContacts, fetchMethodRecords, fetchReviews } from "@/lib/data/queries";
+import { fetchActiveStaff, fetchActiveSuppliers, fetchContacts, fetchInductions, fetchMethodRecords, fetchReviews } from "@/lib/data/queries";
+import { inductionProgress } from "@/lib/training/induction";
 import { signOffProgress, formatDate } from "@/lib/methods/records";
 import { lateFinishes } from "@/lib/cooling/board";
 
@@ -50,6 +51,9 @@ export default function InspectorPage() {
   const { data: reviews } = useCachedQuery(`cd-reviews:${site.id}`, () => fetchReviews(site.id));
   const { data: contacts } = useCachedQuery(`cd-contacts:${site.id}`, () => fetchContacts(site.id));
   const { data: suppliers } = useCachedQuery(`cd-suppliers:${site.id}`, () => fetchActiveSuppliers(site.id));
+  const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
+  const { data: inductions } = useCachedQuery(`cd-inductions:${site.id}`, () => fetchInductions(site.id));
+  const trained = useMemo(() => (staff ?? []).map((p) => ({ name: p.name, ...inductionProgress(inductions ?? [], p.id) })), [staff, inductions]);
   const progress = useMemo(() => signOffProgress(records ?? []), [records]);
   const lastReview = reviews?.[0] ?? null;
 
@@ -88,6 +92,14 @@ export default function InspectorPage() {
             ))}
           </div>
           <Link href="/diary" className="mt-2 inline-block font-semibold text-brand underline">Open any day in the diary, or export it</Link>
+        </section>
+
+        <section className="rounded-2xl bg-surface border border-line px-5 py-4">
+          <h2 className="font-bold text-ink">Staff trained on our safe methods</h2>
+          <p className="mt-1 text-sm text-ink-soft">Each person reads the methods on this iPad and confirms they understood, under their own name. {trained.filter((t) => t.complete).length} of {trained.length} done.</p>
+          <ul className="mt-2 space-y-1 text-sm">
+            {trained.map((t) => <li key={t.staffId} className="flex justify-between gap-3"><span className="text-ink">{t.name}</span><span className={t.complete ? "text-brand font-semibold" : "text-gold-deep"}>{t.complete ? `✓ ${t.completedAt ? formatDate(t.completedAt) : ""}` : `${t.done} of ${t.total}`}</span></li>)}
+          </ul>
         </section>
 
         <Link href="/trace" className={card}>

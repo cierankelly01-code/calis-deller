@@ -93,7 +93,7 @@ export default function WelcomePage() {
             <button type="button" onClick={() => setI((n) => n + 1)} className="h-14 rounded-2xl bg-brand text-white text-lg font-bold flex items-center justify-center gap-2">Next <Icon name="arrow" size={20} /></button>
           )}
         </div>
-        {last && <Link href="/methods" onClick={markWelcomeSeen} className="mt-2 min-h-11 grid place-items-center font-semibold text-brand underline underline-offset-2">Or read the safe methods first</Link>}
+        {last && <Link href="/start" onClick={markWelcomeSeen} className="mt-2 min-h-11 grid place-items-center font-semibold text-brand underline underline-offset-2">New here? Start your training</Link>}
       </div>
     </div>
   );

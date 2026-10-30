@@ -146,3 +146,21 @@ test('hot food check offers sausage rolls and pasties first, then what this shop
   assert.deepEqual(cookedChoices(products,recent),[{id:'p2',name:'Sausage Roll'},{id:null,name:'Pasties'},{id:'p3',name:'Quiche'},{id:null,name:'Scotch egg'}],'the product record is used where it exists; ham is never offered; most-cooked first');
   assert.deepEqual(cookedChoices([],[]).map(c=>c.name),['Sausage rolls','Pasties'],'a new shop still gets the two');
 });
+
+test('staff induction: progress per person, latest confirmation wins, every item is a real method',async()=>{
+  const {inductionProgress,REQUIRED_READING,APP_TOUR}=await import('../src/lib/training/induction.ts');
+  const {findMethod}=await import('../src/lib/methods/content.ts');
+  for(const id of REQUIRED_READING)assert.ok(id===APP_TOUR||findMethod(id),`${id} is a safe method`);
+  const a=randomUUID(),b=randomUUID();
+  const log=(staff,id,at)=>({id:randomUUID(),staff_id:staff,method_id:id,recorded_at:at});
+  const logs=[log(a,APP_TOUR,'2026-10-30T09:00:00Z'),log(a,'hand-washing','2026-10-30T09:05:00Z'),log(b,'hand-washing','2026-10-30T09:06:00Z'),log(a,'not-required','2026-10-30T09:07:00Z')];
+  const p=inductionProgress(logs,a);
+  assert.equal(p.done,2);assert.equal(p.complete,false);assert.equal(p.nextId,REQUIRED_READING[2],'next unread item');
+  const full=REQUIRED_READING.map((id,i)=>log(a,id,`2026-10-30T10:${String(i).padStart(2,'0')}:00Z`));
+  const done=inductionProgress(full,a);
+  assert.equal(done.complete,true);assert.equal(done.nextId,null);assert.equal(done.completedAt,`2026-10-30T10:${String(REQUIRED_READING.length-1).padStart(2,'0')}:00Z`);
+  const {canAccess,validateWrite}=await import('../src/lib/security/policy.ts');
+  assert.ok(canAccess('staff','induction_logs','POST'),'staff record their own reading');
+  assert.ok(validateWrite('induction_logs','POST',{client_id:randomUUID(),staff_id:a,recorded_at:new Date().toISOString(),method_id:'hand-washing'}));
+  assert.throws(()=>validateWrite('induction_logs','POST',{client_id:randomUUID(),staff_id:a,recorded_at:new Date().toISOString(),method_id:'Bad Id'}),/Invalid/);
+});

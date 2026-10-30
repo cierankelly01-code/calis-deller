@@ -18,7 +18,9 @@ import {
   fetchRecentProbeChecks,
   fetchReviews,
   fetchTrainingRecords,
+  fetchInductions,
 } from "@/lib/data/queries";
+import { inductionProgress } from "@/lib/training/induction";
 import { currentSlot, computeUnitSlotStatus } from "@/lib/dashboard/dueStatus";
 import { openBatches, summarise } from "@/lib/counter/board";
 import { describeRemaining, formatClock, fridgeReserve, outNow, summariseAmbient } from "@/lib/ambient/board";
@@ -67,7 +69,8 @@ const ALL_CHECKS: { href: string; icon: IconName; title: string; sub: string }[]
   { href: "/methods", icon: "book", title: "How to do it", sub: "Our safe methods" },
   { href: "/health", icon: "ill", title: "Fit for work", sub: "The sickness rule" },
   { href: "/review", icon: "list", title: "4-weekly review", sub: "Manager signs" },
-  { href: "/training", icon: "cap", title: "Training", sub: "Certificates (manager)" },
+  { href: "/start", icon: "cap", title: "My training", sub: "Read and confirm" },
+  { href: "/training", icon: "people", title: "Staff training", sub: "Certificates (manager)" },
 ];
 
 const TONE: Record<JobTone, { row: string; badge: string; word: string; tile: "red" | "gold" | "green" }> = {
@@ -126,6 +129,7 @@ export default function DashboardPage() {
   const { data: probeChecks } = useCachedQuery(`cd-probe-checks:${site.id}`, () => fetchRecentProbeChecks(site.id));
   const { data: reviews } = useCachedQuery(`cd-reviews:${site.id}`, () => fetchReviews(site.id));
   const { data: training } = useLiveQuery(`training:${site.id}`, () => fetchTrainingRecords(site.id), isManager);
+  const { data: inductions } = useCachedQuery(`cd-inductions:${site.id}`, () => fetchInductions(site.id));
   const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
   const [picking, setPicking] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -192,6 +196,7 @@ export default function DashboardPage() {
   const rest = jobs.filter((j) => j !== next);
   const me = (staff ?? []).find((s) => s.id === staffId) ?? null;
   const choosing = !me || picking;
+  const myTraining = me && inductions ? inductionProgress(inductions, me.id) : null;
 
   return (
     <div className="flex flex-col flex-1">
@@ -231,6 +236,17 @@ export default function DashboardPage() {
           </section>
         ) : (
           <button type="button" onClick={() => setPicking(true)} className="-mt-4 min-h-11 px-1 text-sm font-semibold text-brand underline underline-offset-2">Not {me.name}? Change name</button>
+        )}
+
+        {myTraining && !myTraining.complete && !choosing && (
+          <Link href="/start" className="flex items-center gap-4 rounded-3xl bg-gold-soft border-2 border-gold/60 p-4 active:scale-[0.99] transition-transform">
+            <IconTile name="cap" tone="gold" />
+            <span className="flex-1 min-w-0">
+              <span className="block text-lg font-bold text-ink">{myTraining.done === 0 ? "Start your training" : "Finish your training"}</span>
+              <span className="block text-sm text-ink-soft">{myTraining.done} of {myTraining.total} read. Everyone does this once.</span>
+            </span>
+            <Icon name="chevron" className="text-gold-deep" />
+          </Link>
         )}
 
         {next ? (

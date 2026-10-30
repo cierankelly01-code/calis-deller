@@ -22,7 +22,8 @@ export type OutboxTable =
   | "training_records"
   | "health_logs"
   | "review_logs"
-  | "site_check_logs";
+  | "site_check_logs"
+  | "induction_logs";
 
 export type OutboxEntry = {
   clientId: string; // matches the row's client_id column; used for idempotent upsert

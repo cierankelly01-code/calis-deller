@@ -8,7 +8,8 @@ import { useUser } from "@/components/auth/AuthBoundary";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
 import { useLiveQuery } from "@/lib/data/useLiveQuery";
 import { useSite } from "@/lib/site/SiteContext";
-import { fetchActiveStaff, fetchTrainingRecords, type TrainingRecord } from "@/lib/data/queries";
+import { fetchActiveStaff, fetchInductions, fetchTrainingRecords, type TrainingRecord } from "@/lib/data/queries";
+import { inductionProgress } from "@/lib/training/induction";
 import { useRememberedStaff } from "@/lib/staffMemory";
 import { queueEntry } from "@/lib/offline/outbox";
 import { syncOutbox } from "@/lib/offline/sync";
@@ -47,6 +48,7 @@ export default function TrainingPage() {
   const isManager = user?.role === "manager";
   const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
   const { data: records, error: loadError } = useLiveQuery(`training:${site.id}`, () => fetchTrainingRecords(site.id), isManager);
+  const { data: inductions } = useCachedQuery(`cd-inductions:${site.id}`, () => fetchInductions(site.id));
   const { staffId: recorderId, setStaffId: setRecorderId } = useRememberedStaff(staff ?? []);
   const [local, setLocal] = useState<TrainingRecord[]>([]);
   const [open, setOpen] = useState<string | null>(null); // trainee being added for
@@ -142,6 +144,10 @@ export default function TrainingPage() {
                   {person.certificate.certificate_path && <> · <a href={certificateUrl(person.certificate.certificate_path)} target="_blank" rel="noopener" className="font-semibold text-brand underline">View certificate</a></>}
                 </p>
               )}
+              {(() => {
+                const read = inductionProgress(inductions ?? [], person.staffId);
+                return <p className={`text-sm font-semibold ${read.complete ? "text-brand" : "text-gold-deep"}`}>{read.complete ? `✓ Read and understood all ${read.total} safe methods (${read.completedAt ? formatDate(read.completedAt) : ""})` : `Read and understood ${read.done} of ${read.total} safe methods`}</p>;
+              })()}
               <p className="text-sm text-ink-soft">
                 {person.inducted ? "Induction done" : "No induction recorded"} · trained on {person.methods.size} of {SAFE_METHODS.length} methods
                 {person.methods.size > 0 && `: ${[...person.methods].map((m) => findMethod(m)?.title ?? m).join(", ")}`}
