@@ -8,6 +8,7 @@ import { NumberPad } from "@/components/ui/NumberPad";
 import { SaveBar } from "@/components/ui/SaveBar";
 import { SavedOverlay } from "@/components/ui/SavedOverlay";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
+import { useTodayRows } from "@/lib/data/useTodayRows";
 import { useSite } from "@/lib/site/SiteContext";
 import { fetchActiveStaff, fetchActiveFridgeUnits, fetchTodayFridgeLogs } from "@/lib/data/queries";
 import { useRememberedStaff } from "@/lib/staffMemory";
@@ -30,7 +31,7 @@ export default function FridgeLogPage() {
   const { site } = useSite();
   const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
   const { data: units } = useCachedQuery(`cd-fridge-units:${site.id}`, () => fetchActiveFridgeUnits(site.id));
-  const { data: todayLogs } = useCachedQuery(`cd-today-fridge-logs:${site.id}`, () => fetchTodayFridgeLogs(site.id));
+  const { data: todayLogs, day } = useTodayRows(`cd-today-fridge-logs:${site.id}`, () => fetchTodayFridgeLogs(site.id));
 
   const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
   const [unitChoice, setUnitChoice] = useState<string | null>(null);
@@ -52,11 +53,11 @@ export default function FridgeLogPage() {
       if (logPeriod === period) done.add(log.unit_id);
     }
     for (const key of doneNow) {
-      const [p, id] = key.split(":");
-      if (p === period) done.add(id);
+      const [d, p, id] = key.split(":");
+      if (d === day && p === period) done.add(id);
     }
     return done;
-  }, [todayLogs, doneNow, period]);
+  }, [todayLogs, doneNow, period, day]);
 
   const remainingUnits = useMemo(
     () => (units ?? []).filter((u) => !doneForPeriod.has(u.id)),
@@ -115,7 +116,7 @@ export default function FridgeLogPage() {
       void syncOutbox().catch(() => {});
 
       const moreToDo = remainingUnits.some((u) => u.id !== selectedUnit.id);
-      setDoneNow((prev) => new Set(prev).add(`${period}:${selectedUnit.id}`));
+      setDoneNow((prev) => new Set(prev).add(`${day}:${period}:${selectedUnit.id}`));
       setShowSaved(true);
       setTimeout(() => {
         setShowSaved(false);

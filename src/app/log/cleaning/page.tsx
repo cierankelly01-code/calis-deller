@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StaffTilePicker } from "@/components/ui/StaffTilePicker";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
+import { useTodayRows } from "@/lib/data/useTodayRows";
 import { useSite } from "@/lib/site/SiteContext";
 import {
   fetchActiveStaff,
@@ -25,7 +26,7 @@ export default function CleaningLogPage() {
   const { site } = useSite();
   const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
   const { data: tasks } = useCachedQuery(`cd-cleaning-tasks:${site.id}`, () => fetchActiveCleaningTasks(site.id));
-  const { data: todayLogs } = useCachedQuery(`cd-today-cleaning-logs:${site.id}`, () => fetchTodayCleaningLogs(site.id));
+  const { data: todayLogs, day } = useTodayRows(`cd-today-cleaning-logs:${site.id}`, () => fetchTodayCleaningLogs(site.id));
 
   const { staffId, setStaffId } = useRememberedStaff(staff ?? []);
   const [session, setSession] = useState<Session>(defaultSession());
@@ -48,7 +49,7 @@ export default function CleaningLogPage() {
   }, [todayLogs, session]);
 
   function isDone(taskId: string) {
-    return tickedNow.has(`${session}:${taskId}`) || doneFromServer.has(taskId);
+    return tickedNow.has(`${day}:${session}:${taskId}`) || doneFromServer.has(taskId);
   }
 
   const remaining = sessionTasks.filter((t) => !isDone(t.id));
@@ -71,7 +72,7 @@ export default function CleaningLogPage() {
       });
       void syncOutbox().catch(() => {});
       setSaveError(null);
-      setTickedNow((prev) => new Set(prev).add(`${session}:${taskId}`));
+      setTickedNow((prev) => new Set(prev).add(`${day}:${session}:${taskId}`));
     } catch (err) {
       setSaveError(`Could not save: ${err instanceof Error ? err.message : "unknown error"}`);
       throw err;

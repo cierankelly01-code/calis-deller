@@ -6,6 +6,7 @@ import { useCachedQuery } from "@/lib/data/useCachedQuery";
 import { fetchActiveProducts, type ActiveProduct } from "@/lib/data/queries";
 import { ALLERGENS, allergenEmoji, allergenLabel } from "@/lib/allergens";
 import { supabase } from "@/lib/supabase/client";
+import { allergensNotChecked, splitForAllergy } from "@/lib/allergens/answer";
 import { useUser } from '@/components/auth/AuthBoundary';
 
 // The screen staff open mid-service when a customer asks "does this contain
@@ -54,13 +55,12 @@ function ProductCard({ product, onEdit }: { product: ActiveProduct; onEdit: () =
           Edit
         </button>}
       </div>
-      {product.allergens.length === 0 && product.may_contain.length === 0 ? (
-        <p className="text-brand font-medium">✓ No declared allergens</p>
-      ) : (
-        <>
-          <AllergenChips keys={product.allergens} tone="contains" />
-          <AllergenChips keys={product.may_contain} tone="may" />
-        </>
+      <AllergenChips keys={product.allergens} tone="contains" />
+      <AllergenChips keys={product.may_contain} tone="may" />
+      {allergensNotChecked(product) && (
+        <p className="rounded-xl bg-gold-soft text-gold-deep font-semibold px-3 py-2">
+          Allergens not checked. Read the label or ask the manager before you answer.
+        </p>
       )}
       {product.notes && <p className="text-sm text-ink-soft">{product.notes}</p>}
       <p className="text-xs text-ink-faint">
@@ -94,11 +94,7 @@ export default function AllergensPage() {
 
   const split = useMemo(() => {
     if (!filterKey) return null;
-    const unsafe = searched.filter(
-      (p) => p.allergens.includes(filterKey) || p.may_contain.includes(filterKey)
-    );
-    const safe = searched.filter((p) => !unsafe.includes(p));
-    return { safe, unsafe };
+    return splitForAllergy(searched, filterKey);
   }, [searched, filterKey]);
 
   function startAdd() {
@@ -378,20 +374,32 @@ export default function AllergensPage() {
           <>
             <section>
               <h2 className="text-[13px] font-semibold text-brand uppercase tracking-wider mb-2">
-                ✓ Safe — no {allergenLabel(filterKey!).toLowerCase()}
+                No {allergenLabel(filterKey!).toLowerCase()} in our recipe. Check the label too
               </h2>
-              {split.safe.length === 0 ? (
+              {split.notRecorded.length === 0 ? (
                 <p className="text-sm text-ink-soft rounded-2xl bg-surface border border-line p-4">
-                  Nothing on the list is safe for this allergy.
+                  Nothing on the list has been checked and found free of this allergen.
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {split.safe.map((p) => (
+                  {split.notRecorded.map((p) => (
                     <ProductCard key={p.id} product={p} onEdit={() => startEdit(p)} />
                   ))}
                 </div>
               )}
             </section>
+            {split.notChecked.length > 0 && (
+              <section>
+                <h2 className="text-[13px] font-semibold text-gold-deep uppercase tracking-wider mb-2">
+                  Not checked. Don&apos;t say it&apos;s safe
+                </h2>
+                <div className="space-y-3">
+                  {split.notChecked.map((p) => (
+                    <ProductCard key={p.id} product={p} onEdit={() => startEdit(p)} />
+                  ))}
+                </div>
+              </section>
+            )}
             <section>
               <h2 className="text-[13px] font-semibold text-danger uppercase tracking-wider mb-2">
                 ✗ Not safe — contains or may contain

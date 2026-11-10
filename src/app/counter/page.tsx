@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StaffTilePicker } from "@/components/ui/StaffTilePicker";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
+import { useTodayRows } from "@/lib/data/useTodayRows";
 import { useSite } from "@/lib/site/SiteContext";
 import {
   fetchActiveStaff,
@@ -51,7 +52,7 @@ export default function CounterBoardPage() {
   const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
   const { data: units } = useCachedQuery(`cd-fridge-units:${site.id}`, () => fetchActiveFridgeUnits(site.id));
   const { data: stockLogs, loading, error } = useCachedQuery(`cd-counter-stock:${site.id}`, () => fetchCounterStock(site.id));
-  const { data: todayFridgeLogs } = useCachedQuery(`cd-today-fridge-logs:${site.id}`, () => fetchTodayFridgeLogs(site.id));
+  const { data: todayFridgeLogs } = useTodayRows(`cd-today-fridge-logs:${site.id}`, () => fetchTodayFridgeLogs(site.id));
   const { data: deliveries } = useCachedQuery(`cd-recent-deliveries:${site.id}`, () => fetchRecentDeliveries(site.id));
   const [showProcedure, setShowProcedure] = useState(false);
 

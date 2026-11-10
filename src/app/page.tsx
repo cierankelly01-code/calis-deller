@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useCachedQuery } from "@/lib/data/useCachedQuery";
+import { useTodayRows } from "@/lib/data/useTodayRows";
 import { useSite } from "@/lib/site/SiteContext";
 import {
   fetchActiveFridgeUnits,
@@ -119,9 +120,9 @@ export default function DashboardPage() {
   const { site } = useSite();
   const { data: staff } = useCachedQuery(`cd-staff:${site.id}`, () => fetchActiveStaff(site.id));
   const { data: units } = useCachedQuery(`cd-fridge-units:${site.id}`, () => fetchActiveFridgeUnits(site.id));
-  const { data: todayLogs } = useCachedQuery(`cd-today-fridge-logs:${site.id}`, () => fetchTodayFridgeLogs(site.id));
+  const { data: todayLogs } = useTodayRows(`cd-today-fridge-logs:${site.id}`, () => fetchTodayFridgeLogs(site.id));
   const { data: cleaningTasks } = useCachedQuery(`cd-cleaning-tasks:${site.id}`, () => fetchActiveCleaningTasks(site.id));
-  const { data: todayCleaning } = useCachedQuery(`cd-today-cleaning-logs:${site.id}`, () => fetchTodayCleaningLogs(site.id));
+  const { data: todayCleaning } = useTodayRows(`cd-today-cleaning-logs:${site.id}`, () => fetchTodayCleaningLogs(site.id));
   const { data: counterLogs } = useCachedQuery(`cd-counter-stock:${site.id}`, () => fetchCounterStock(site.id));
   const { data: ambientLogs } = useCachedQuery(`cd-ambient:${site.id}`, () => fetchAmbientDisplay(site.id));
   const { data: hotLogs } = useCachedQuery(`cd-hot-batches:${site.id}`, () => fetchHotBatches(site.id));
